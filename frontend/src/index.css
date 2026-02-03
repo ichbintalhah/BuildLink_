@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* --- GLOBAL POLISH --- */
+
+/* 1. Smooth Scrolling for the whole HTML */
+html {
+    scroll-behavior: smooth;
+}
+
+/* 2. Brand-colored Text Selection */
+::selection {
+    background-color: oklch(var(--p));
+    /* Uses your primary brand color */
+    color: white;
+}
+
+/* 3. Custom Scrollbar (Chrome/Edge/Safari) */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    /* Light grey */
+    border-radius: 20px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: oklch(var(--p));
+    /* Brand color on hover */
+}
+
+/* 4. Remove highlight tap color on mobile */
+* {
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* 5. Custom Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.4s ease-out forwards;
+}

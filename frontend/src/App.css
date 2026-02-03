@@ -1,0 +1,406 @@
+/* ================================
+   GLOBAL INTERACTION EFFECTS
+   ================================ */
+
+/* --- ROLE BUTTON SELECTION STYLES --- */
+.role-button {
+  position: relative;
+  overflow: hidden;
+  transition: all 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.role-button::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.1) 50%,
+    transparent 100%
+  );
+  transform: translateX(-100%);
+  transition: transform 600ms ease-out;
+}
+
+.role-button:hover::before {
+  transform: translateX(100%);
+}
+
+.role-button.active {
+  transform: scale(1.05) translateY(-4px);
+}
+
+.role-button.active .icon {
+  animation: iconBounce 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes iconBounce {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+}
+
+/* --- AUTH FORM ENHANCEMENTS --- */
+.auth-form-container {
+  animation: slideInUp 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.form-input-animated {
+  position: relative;
+  transition: all 200ms ease-out;
+}
+
+.form-input-animated:focus {
+  transform: translateY(-2px);
+}
+
+/* --- BUTTON INTERACTIONS --- */
+.btn {
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+}
+
+.btn:not(:disabled):active {
+  transform: translateY(0);
+}
+
+.btn:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+/* --- CARD INTERACTIONS --- */
+.card {
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  border-color: hsl(var(--bc) / 0.1);
+}
+
+.card:hover {
+  border-color: hsl(var(--bc) / 0.2);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+.card.clickable {
+  cursor: pointer;
+}
+
+/* --- TABLE ROW INTERACTIONS --- */
+table tbody tr {
+  transition: all 150ms ease-out;
+}
+
+table tbody tr:hover {
+  background-color: hsl(var(--b2));
+  box-shadow: inset 0 0 0 1px hsl(var(--bc) / 0.1);
+}
+
+table tbody tr:active {
+  background-color: hsl(var(--b3));
+}
+
+/* --- TAB/MENU INTERACTIONS --- */
+.tabs-boxed .tab {
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tabs-boxed .tab:hover:not(.tab-active) {
+  background-color: hsl(var(--b2));
+}
+
+.tabs-boxed .tab-active {
+  box-shadow: 0 4px 12px hsl(var(--p) / 0.3);
+}
+
+/* --- INPUT FOCUS STATES --- */
+.input:focus,
+.textarea:focus,
+.select:focus {
+  transition: all 200ms ease-out;
+  border-color: hsl(var(--p));
+  box-shadow: 0 0 0 3px hsl(var(--p) / 0.1);
+}
+
+.input:focus-visible,
+.textarea:focus-visible,
+.select:focus-visible {
+  outline: none;
+}
+
+/* --- BADGE/LABEL ANIMATIONS --- */
+.badge {
+  transition: all 150ms ease-out;
+}
+
+.badge.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* --- CHECKBOX/RADIO --- */
+.checkbox,
+.radio {
+  transition: all 200ms ease-out;
+}
+
+.checkbox:checked,
+.radio:checked {
+  box-shadow: 0 0 0 2px hsl(var(--b1)), 0 0 0 4px hsl(var(--p));
+}
+
+/* --- MODAL ANIMATIONS --- */
+.modal {
+  animation: fadeInScale 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* --- TOOLTIP INTERACTIONS --- */
+.tooltip {
+  transition: all 150ms ease-out;
+}
+
+/* --- DROPDOWN ANIMATIONS --- */
+.dropdown-content {
+  animation: slideDown 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* --- ICON BUTTON INTERACTIONS --- */
+.btn-circle {
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-circle:hover {
+  transform: scale(1.08) translateY(-2px);
+}
+
+.btn-circle:active {
+  transform: scale(1);
+}
+
+/* --- LINK INTERACTIONS --- */
+.link {
+  transition: all 150ms ease-out;
+  position: relative;
+}
+
+.link:hover {
+  color: hsl(var(--p));
+}
+
+.link-hover:hover {
+  opacity: 0.7;
+}
+
+/* --- DIVIDER ANIMATION --- */
+.divider {
+  transition: opacity 200ms ease-out;
+}
+
+/* --- LOADING SPINNER --- */
+.loading {
+  animation: spin 1.5s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* --- ALERT ANIMATIONS --- */
+.alert {
+  animation: slideInAlert 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideInAlert {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* --- FORM CONTROL STYLES --- */
+.form-control {
+  transition: all 200ms ease-out;
+}
+
+.form-control:focus-within label {
+  color: hsl(var(--p));
+  font-weight: 600;
+}
+
+/* --- NAVBAR INTERACTIONS --- */
+.navbar .menu a {
+  transition: all 150ms ease-out;
+}
+
+.navbar .menu a:hover {
+  background-color: hsl(var(--p) / 0.1);
+  padding-left: 1.25rem;
+}
+
+/* --- RESPONSIVE ADJUSTMENTS --- */
+@media (max-width: 768px) {
+  .btn:hover {
+    transform: translateY(-1px);
+  }
+
+  .card:hover {
+    transform: translateY(-1px);
+  }
+
+  .btn-circle:hover {
+    transform: scale(1.04);
+  }
+}
+
+/* --- DARK MODE SUPPORT (Automatic via DaisyUI) --- */
+[data-theme="dark"] .card {
+  border-color: hsl(var(--bc) / 0.15);
+}
+
+[data-theme="dark"] .card:hover {
+  border-color: hsl(var(--bc) / 0.25);
+}
+
+[data-theme="dark"] table tbody tr:hover {
+  background-color: hsl(var(--b2) / 0.6);
+}
+
+/* --- NO MOTION PREFERENCE SUPPORT --- */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ================================
+   EXISTING STYLES (PRESERVED)
+   ================================ */
+
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
+}
+
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+}
+
+/* AI Estimator Animations */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-in-out forwards;
+}
+
+@keyframes bounce-delay-100 {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-8px);
+  }
+}
+
+.delay-100 {
+  animation-delay: 100ms;
+}
+
+.delay-200 {
+  animation-delay: 200ms;
+}
