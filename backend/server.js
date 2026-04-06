@@ -56,20 +56,23 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 app.use(cookieParser());
+const normalizeOrigin = (url) => url.replace(/\/+$/, "").toLowerCase();
+
 const allowedOrigins = [
   "http://localhost:5173",
   "http://127.0.0.1:5173",
   ...(process.env.FRONTEND_URLS
     ? process.env.FRONTEND_URLS.split(",").map((url) => url.trim()).filter(Boolean)
     : []),
-];
+].map(normalizeOrigin);
 
 app.use(
   cors({
     origin(origin, callback) {
       // Allow non-browser clients and same-origin calls with no Origin header.
       if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) {
+      const normalizedOrigin = normalizeOrigin(origin);
+      if (allowedOrigins.includes(normalizedOrigin)) {
         return callback(null, true);
       }
       return callback(new Error(`CORS blocked for origin: ${origin}`));

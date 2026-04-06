@@ -412,12 +412,22 @@ const loginUser = async (req, res) => {
 
 // @desc    Logout user
 const logoutUser = (req, res) => {
-  const isProduction = process.env.NODE_ENV === "production";
+  const frontendUrls = (process.env.FRONTEND_URLS || "")
+    .split(",")
+    .map((url) => url.trim().toLowerCase())
+    .filter(Boolean);
+  const hasRemoteFrontend = frontendUrls.some(
+    (url) => !url.includes("localhost") && !url.includes("127.0.0.1"),
+  );
+  const useCrossSiteCookies =
+    process.env.COOKIE_CROSS_SITE === "true" ||
+    process.env.NODE_ENV === "production" ||
+    hasRemoteFrontend;
 
   res.cookie("jwt", "", {
     httpOnly: true,
-    secure: isProduction,
-    sameSite: isProduction ? "none" : "strict",
+    secure: useCrossSiteCookies,
+    sameSite: useCrossSiteCookies ? "none" : "strict",
     path: "/",
     expires: new Date(0),
     maxAge: 0,
