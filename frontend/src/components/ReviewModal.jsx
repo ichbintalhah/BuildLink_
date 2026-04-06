@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import api from "../services/api";
 import toast from "react-hot-toast";
 import { Star, X, CheckCircle, AlertCircle, Loader } from "lucide-react";
@@ -16,6 +17,38 @@ const ReviewModal = ({
   const [jobSatisfied, setJobSatisfied] = useState(false);
   const [paymentReleaseStatus, setPaymentReleaseStatus] = useState(null); // "releasing" | "success" | "error"
   const [paymentError, setPaymentError] = useState(null);
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    const previousPaddingRight = document.body.style.paddingRight;
+    const scrollbarWidth =
+      window.innerWidth - document.documentElement.clientWidth;
+
+    document.body.style.overflow = "hidden";
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
+    }
+
+    const handleEscapeKey = (event) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    document.addEventListener("keydown", handleEscapeKey);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.body.style.paddingRight = previousPaddingRight;
+      document.removeEventListener("keydown", handleEscapeKey);
+    };
+  }, [onClose]);
+
+  const handleBackdropClick = (event) => {
+    if (event.target === event.currentTarget) {
+      onClose();
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -40,16 +73,16 @@ const ReviewModal = ({
         try {
           setPaymentReleaseStatus("releasing"); // STEP 3: Show releasing status
           console.log(
-            `[ReviewModal] Releasing payment for booking: ${booking._id}`
+            `[ReviewModal] Releasing payment for booking: ${booking._id}`,
           );
 
           const paymentRes = await api.put(
-            `/bookings/${booking._id}/satisfied`
+            `/bookings/${booking._id}/satisfied`,
           );
 
           console.log(
             `[ReviewModal] Payment released successfully:`,
-            paymentRes.data
+            paymentRes.data,
           );
           setJobSatisfied(true);
           setPaymentReleaseStatus("success"); // STEP 3: Show success status
@@ -60,7 +93,7 @@ const ReviewModal = ({
             paymentRes.data?.contractorAmount ||
             "N/A";
           toast.success(
-            `✅ Payment released to contractor!\nAmount: Rs. ${amount}`
+            `✅ Payment released to contractor!\nAmount: Rs. ${amount}`,
           );
 
           // Brief delay to show success state
@@ -74,7 +107,7 @@ const ReviewModal = ({
 
           console.error(
             `[ReviewModal] Payment release failed:`,
-            error.response?.data
+            error.response?.data,
           );
           setPaymentReleaseStatus("error");
           setPaymentError(errorMsg);
@@ -106,16 +139,24 @@ const ReviewModal = ({
     }
   };
 
-  return (
+  const modalContent = (
     // High z-index to sit above everything
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[999] flex justify-center items-center p-4">
+    <div
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[999] flex justify-center items-center p-4"
+      onClick={handleBackdropClick}
+      role="presentation"
+    >
       {/* Manually styled box to ensure visibility */}
-      <div className="bg-base-100 w-full max-w-lg rounded-2xl shadow-2xl border border-base-200 relative animate-fade-in">
+      <div
+        className="bg-base-100 w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl border border-base-200 relative animate-fade-in"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Rate Experience"
+      >
         {/* Close Button */}
         <button
           onClick={onClose}
           className="absolute top-4 right-4 btn btn-sm btn-circle btn-ghost"
-          disabled={loading}
         >
           <X size={20} />
         </button>
@@ -251,6 +292,8 @@ const ReviewModal = ({
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 };
 
 export default ReviewModal;

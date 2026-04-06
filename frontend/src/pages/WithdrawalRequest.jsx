@@ -22,22 +22,30 @@ const WithdrawalRequest = () => {
   const [contractorData, setContractorData] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState("");
   const [paymentDetail, setPaymentDetail] = useState("");
-  // Fetch latest contractor data on component mount
+  const [pendingTotal, setPendingTotal] = useState(0);
+
+  // Fetch latest account data + pending withdrawals on mount
   useEffect(() => {
-    const fetchContractorData = async () => {
+    const fetchData = async () => {
       try {
+        // Fetch account data
         if (user?._id && user?.role === "contractor") {
           const { data } = await api.get(`/contractors/${user._id}`);
           setContractorData(data);
         }
+        // Fetch pending withdrawal total
+        const { data: history } = await api.get("/wallet/history");
+        const pending = (history || []).filter((w) => w.status === "Pending");
+        const total = pending.reduce((sum, w) => sum + (w.amount || 0), 0);
+        setPendingTotal(total);
       } catch (error) {
-        console.error("Error fetching contractor data:", error);
+        console.error("Error fetching data:", error);
       } finally {
         setFetchingDetails(false);
       }
     };
 
-    fetchContractorData();
+    fetchData();
   }, [user]);
   useEffect(() => {
     const data = contractorData || user;
@@ -77,7 +85,15 @@ const WithdrawalRequest = () => {
       return toast.error("Enter a valid amount");
     }
 
-    if (parseFloat(amount) > user.walletBalance) {
+    const walletBal = contractorData?.walletBalance ?? user?.walletBalance ?? 0;
+    const availableBal = walletBal - pendingTotal;
+
+    if (parseFloat(amount) > availableBal) {
+      if (pendingTotal > 0) {
+        return toast.error(
+          `Withdrawal already in process (Rs. ${pendingTotal.toLocaleString()} pending). Available: Rs. ${availableBal.toLocaleString()}`,
+        );
+      }
       return toast.error("Insufficient wallet balance");
     }
 
@@ -96,11 +112,8 @@ const WithdrawalRequest = () => {
         accountDetails: paymentDetail,
       });
 
-      // Immediately deduct from wallet display
-      setUser({
-        ...user,
-        walletBalance: user.walletBalance - parseFloat(amount),
-      });
+      // Update pending total in local state so UI reflects the reservation
+      setPendingTotal((prev) => prev + parseFloat(amount));
 
       toast.success(
         "Withdrawal request submitted! Admin will process it soon.",
@@ -138,19 +151,50 @@ const WithdrawalRequest = () => {
           {/* Card Body */}
           <div className="p-8">
             {/* Wallet Balance Display */}
-            <div className="bg-success/10 border border-success/30 rounded-xl p-6 mb-8">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm opacity-60 font-bold">
-                    AVAILABLE BALANCE
-                  </p>
-                  <p className="text-3xl font-bold text-success">
-                    Rs. {user.walletBalance?.toLocaleString() || "0"}
-                  </p>
+            {(() => {
+              const walletBal =
+                contractorData?.walletBalance ?? user?.walletBalance ?? 0;
+              const availableBal = walletBal - pendingTotal;
+              return (
+                <div className="space-y-3 mb-8">
+                  <div className="bg-success/10 border border-success/30 rounded-xl p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm opacity-60 font-bold">
+                          WALLET BALANCE
+                        </p>
+                        <p className="text-3xl font-bold text-success">
+                          Rs. {walletBal.toLocaleString()}
+                        </p>
+                      </div>
+                      <DollarSign className="text-success h-16 w-16 opacity-20" />
+                    </div>
+                  </div>
+                  {pendingTotal > 0 && (
+                    <div className="bg-warning/10 border border-warning/30 rounded-xl p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-xs opacity-60 font-bold">
+                            PENDING WITHDRAWALS
+                          </p>
+                          <p className="text-lg font-bold text-warning">
+                            Rs. {pendingTotal.toLocaleString()}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs opacity-60 font-bold text-right">
+                            AVAILABLE TO WITHDRAW
+                          </p>
+                          <p className="text-lg font-bold text-primary text-right">
+                            Rs. {availableBal.toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <DollarSign className="text-success h-16 w-16 opacity-20" />
-              </div>
-            </div>
+              );
+            })()}
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -246,15 +290,26 @@ const WithdrawalRequest = () => {
                   onChange={(e) => setAmount(e.target.value)}
                   required
                   min="100"
-                  max={user.walletBalance}
+                  max={
+                    (contractorData?.walletBalance ?? user.walletBalance ?? 0) -
+                    pendingTotal
+                  }
                   disabled={
-                    paymentMethod === "Not Set" || paymentDetail === "Not Set"
+                    paymentMethod === "Not Set" ||
+                    paymentDetail === "Not Set" ||
+                    (contractorData?.walletBalance ?? user.walletBalance ?? 0) -
+                      pendingTotal <=
+                      0
                   }
                 />
                 <label className="label">
                   <span className="label-text-alt opacity-60">
                     Min: Rs. 100 | Max: Rs.{" "}
-                    {user.walletBalance?.toLocaleString() || "0"}
+                    {(
+                      (contractorData?.walletBalance ??
+                        user.walletBalance ??
+                        0) - pendingTotal
+                    ).toLocaleString()}
                   </span>
                 </label>
               </div>
@@ -273,7 +328,10 @@ const WithdrawalRequest = () => {
                 disabled={
                   loading ||
                   paymentMethod === "Not Set" ||
-                  paymentDetail === "Not Set"
+                  paymentDetail === "Not Set" ||
+                  (contractorData?.walletBalance ?? user?.walletBalance ?? 0) -
+                    pendingTotal <=
+                    0
                 }
                 className="btn btn-primary w-full btn-lg gap-2 text-lg"
               >

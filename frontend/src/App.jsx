@@ -25,6 +25,7 @@ import HeavyDutyConstruction from "./pages/HeavyDutyConstruction";
 
 // New Pages
 import About from "./pages/About";
+import Contact from "./pages/Contact";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import Terms from "./pages/Terms";
 import WithdrawalRequest from "./pages/WithdrawalRequest";
@@ -60,6 +61,7 @@ function App() {
 
         {/* Public Pages */}
         <Route path="/about" element={<About />} />
+        <Route path="/contact" element={<Contact />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/find-pro" element={<FindPro />} />

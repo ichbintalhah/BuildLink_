@@ -4,6 +4,7 @@ const Contractor = require("../models/Contractor");
 const generateToken = require("../utils/generateToken");
 const sendEmail = require("../utils/sendEmail");
 const uploadToCloudinary = require("../utils/uploadToCloudinary");
+const { compareFaces } = require("./faceVerificationController");
 
 // Normalize skill strings so storage and responses stay consistent
 const normalizeSkillValue = (skill) => {
@@ -65,6 +66,13 @@ const registerUser = async (req, res) => {
   } = req.body;
 
   try {
+    // ✅ Enforce minimum 8-character password length
+    if (!password || password.length < 8) {
+      return res.status(400).json({
+        message: "Password must be at least 8 characters long",
+      });
+    }
+
     // Validate that all required picture files are provided
     if (
       !req.files ||
@@ -78,7 +86,7 @@ const registerUser = async (req, res) => {
       });
     }
 
-    console.log("📸 Files received:", {
+    console.log("Files received:", {
       cnicFront: req.files.cnicFront?.[0]?.originalname,
       cnicBack: req.files.cnicBack?.[0]?.originalname,
       selfie: req.files.selfie?.[0]?.originalname,
@@ -131,6 +139,41 @@ const registerUser = async (req, res) => {
           .json({ message: "CNIC already registered to another account" });
       }
 
+      // ── AI Face Verification (CNIC front vs Selfie) ────────────────────
+      try {
+        console.log("Starting AI face verification for contractor signup\u2026");
+        const cnicFile = req.files.cnicFront[0];
+        const selfieFile = req.files.selfie[0];
+
+        const verdict = await compareFaces(
+          cnicFile.buffer,
+          cnicFile.mimetype,
+          selfieFile.buffer,
+          selfieFile.mimetype,
+        );
+
+        console.log("Face verification verdict:", verdict);
+
+        const CONFIDENCE_THRESHOLD = 0.75;
+        if (!verdict.isMatch || verdict.confidence < CONFIDENCE_THRESHOLD) {
+          return res.status(401).json({
+            message: "Identity verification failed. The face on your CNIC does not match your selfie.",
+            isMatch: verdict.isMatch,
+            confidence: verdict.confidence,
+            reason: verdict.reason,
+          });
+        }
+
+        // Store verification result to embed in the contractor record below
+        var faceVerificationResult = verdict; // eslint-disable-line no-var
+      } catch (verifyErr) {
+        console.error("❌ Face verification error:", verifyErr.message);
+        return res.status(500).json({
+          message: "Identity verification service unavailable. Please try again later.",
+          error: verifyErr.message,
+        });
+      }
+
       const parsedContractorDetails =
         typeof contractorDetails === "string"
           ? JSON.parse(contractorDetails)
@@ -159,6 +202,10 @@ const registerUser = async (req, res) => {
         selfie: selfieUrl,
         // ✅ Set profile picture to selfie by default
         profilePicture: selfieUrl,
+        // ✅ AI Face Verification result
+        identityVerified: true,
+        identityConfidence: faceVerificationResult.confidence,
+        identityReason: faceVerificationResult.reason,
       };
 
       const contractor = await Contractor.create(contractorData);
@@ -180,6 +227,7 @@ const registerUser = async (req, res) => {
           role: contractor.role,
           walletBalance: contractor.walletBalance,
           isVerified: contractor.isVerified,
+          identityVerified: contractor.identityVerified,
           profilePicture: contractor.profilePicture,
           contractorDetails: {
             paymentMethod: contractor.paymentMethod,
@@ -233,7 +281,7 @@ const registerUser = async (req, res) => {
       profilePicture: selfieUrl,
     };
 
-    console.log("👤 Creating User with data:", userData);
+    console.log("Creating User with data:", userData);
 
     const user = await User.create(userData);
 
@@ -254,6 +302,10 @@ const registerUser = async (req, res) => {
         _id: user._id,
         fullName: user.fullName,
         email: user.email,
+        phone: user.phone,
+        address: user.address,
+        location: user.location,
+        cnic: user.cnic,
         role: user.role,
         paymentMethod: user.paymentMethod,
         paymentAccountValue: user.paymentAccountValue,
@@ -273,17 +325,32 @@ const registerUser = async (req, res) => {
 const loginUser = async (req, res) => {
   const { email, password } = req.body;
   try {
+    console.log("Login attempt for email:", email);
+
     // Try to find user first
     let user = await User.findOne({ email: email.toLowerCase() });
     let isContractor = false;
+
+    console.log("User found in User model:", user ? "YES" : "NO");
 
     // If not found in User, try Contractor
     if (!user) {
       user = await Contractor.findOne({ email: email.toLowerCase() });
       isContractor = true;
+      console.log("User found in Contractor model:", user ? "YES" : "NO");
     }
 
-    if (!user || !(await user.matchPassword(password))) {
+    if (!user) {
+      console.log("❌ No user found with email:", email);
+      return res.status(401).json({ message: "Invalid email or password" });
+    }
+
+    console.log("Checking password for user:", user.email);
+    const passwordMatch = await user.matchPassword(password);
+    console.log("Password match result:", passwordMatch);
+
+    if (!passwordMatch) {
+      console.log(" Password does not match");
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
@@ -297,6 +364,7 @@ const loginUser = async (req, res) => {
         email: user.email,
         phone: user.phone,
         address: user.address,
+        location: user.location,
         cnic: user.cnic,
         role: user.role,
         skill: user.skill,
@@ -326,6 +394,7 @@ const loginUser = async (req, res) => {
         email: user.email,
         phone: user.phone,
         address: user.address,
+        location: user.location,
         cnic: user.cnic,
         role: user.role,
         walletBalance: user.walletBalance || 0,
@@ -345,7 +414,11 @@ const loginUser = async (req, res) => {
 const logoutUser = (req, res) => {
   res.cookie("jwt", "", {
     httpOnly: true,
+    secure: process.env.NODE_ENV !== "development",
+    sameSite: "strict",
+    path: "/",
     expires: new Date(0),
+    maxAge: 0,
   });
   res.status(200).json({ message: "Logged out successfully" });
 };
@@ -486,6 +559,13 @@ const resetPassword = async (req, res) => {
   if (!newPassword) {
     return res.status(400).json({
       message: "New password is required.",
+    });
+  }
+
+  // ✅ Enforce minimum 8-character password length
+  if (newPassword.length < 8) {
+    return res.status(400).json({
+      message: "Password must be at least 8 characters long",
     });
   }
 

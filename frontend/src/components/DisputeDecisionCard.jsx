@@ -1,7 +1,21 @@
 import { AlertTriangle, CheckCircle, DollarSign } from "lucide-react";
 
 const DisputeDecisionCard = ({ dispute }) => {
-  if (!dispute || dispute.status !== "Resolved") {
+  if (!dispute || !dispute.status) {
+    return null;
+  }
+
+  if (dispute.status === "Open") {
+    return (
+      <div className="border rounded-lg p-2 bg-warning/10 border-warning/30">
+        <p className="text-sm font-medium text-warning">
+          Notice: Please wait for admin decision. It may take up to 24 hours.
+        </p>
+      </div>
+    );
+  }
+
+  if (dispute.status !== "Resolved") {
     return null;
   }
 

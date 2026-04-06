@@ -3,7 +3,7 @@ const dotenv = require("dotenv");
 const cron = require("node-cron");
 
 // 1. Load Environment Variables FIRST
-dotenv.config();
+dotenv.config({ quiet: true });
 
 // 2. Validate environment variables
 const validateEnv = require("./utils/validateEnv");
@@ -22,6 +22,8 @@ const {
   checkAndCancelExpiredBookings,
   checkExpiredContractorAcceptance,
   checkExpiredPaymentUploads,
+  checkExpiredMilestoneDeadlines,
+  checkExpiredMilestoneSatisfaction,
 } = require("./utils/bookingScheduler");
 
 // Import Route Files
@@ -36,11 +38,13 @@ const advisoryRoutes = require("./routes/advisoryRoutes");
 const disputeRoutes = require("./routes/disputeRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
 const walletRoutes = require("./routes/walletRoutes");
+const messageRoutes = require("./routes/messageRoutes");
+const analyticsRoutes = require("./routes/analyticsRoutes");
 
 // Connect to MongoDB
 connectDB().catch((error) => {
   console.error("Failed to connect to MongoDB:", error.message);
-  console.warn("⚠️  Server will continue without MongoDB for testing purposes");
+  console.warn("⚠️ Server will continue without MongoDB for testing purposes");
   // Don't exit - allow server to run for AI testing
   // process.exit(1);
 });
@@ -56,7 +60,7 @@ app.use(
   cors({
     origin: "http://localhost:5173",
     credentials: true,
-  })
+  }),
 );
 
 // --- ROUTES ---
@@ -71,11 +75,13 @@ app.use("/api/advisory", advisoryRoutes);
 app.use("/api/disputes", disputeRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/wallet", walletRoutes);
+app.use("/api/messages", messageRoutes);
+app.use("/api/analytics", analyticsRoutes);
 
 // Health check endpoint
 app.get("/", (req, res) => {
   res.json({
-    status: "✅ BuildLink API is Running",
+    status: "BuildLink API is Running",
     timestamp: new Date().toISOString(),
     version: "1.0.0",
   });
@@ -116,7 +122,7 @@ cron.schedule("* * * * *", () => {
 
 // 2. Auto-complete jobs after 3 hours (Runs every minute)
 cron.schedule("* * * * *", () => {
-  console.log("[Scheduler] Checking for jobs requiring auto-completion...");
+  // console.log("[Scheduler] Checking for jobs requiring auto-completion...");
   checkAndAutoCompleteBookings();
 });
 
@@ -137,24 +143,29 @@ cron.schedule("* * * * *", () => {
 
 // 6. Check for expired payment uploads (Runs every minute)
 cron.schedule("* * * * *", () => {
-  console.log("[Scheduler] Checking for expired payment uploads...");
+  // console.log("[Scheduler] Checking for expired payment uploads...");
   checkExpiredPaymentUploads();
+});
+
+// 7. Check for expired milestone deadlines in heavy duty construction (Runs every minute)
+cron.schedule("* * * * *", () => {
+  checkExpiredMilestoneDeadlines();
+});
+
+// 8. Check for expired milestone satisfaction deadlines (Runs every minute)
+cron.schedule("* * * * *", () => {
+  checkExpiredMilestoneSatisfaction();
 });
 
 const PORT = process.env.PORT || 5000;
 const server = app.listen(PORT, () => {
-  console.log("\n" + "=".repeat(60));
-  console.log("🚀 BuildLink Server Started Successfully");
-  console.log("=".repeat(60));
-  console.log(`✅ Server running on port: ${PORT}`);
-  console.log(`🌐 Environment: ${process.env.NODE_ENV || "development"}`);
-  console.log(`📅 Scheduler initialized - real-time checks running`);
-  console.log("=".repeat(60) + "\n");
+  console.log(`Server running on port: ${PORT}`);
+  // console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
 });
 
 // Graceful shutdown
 process.on("SIGTERM", () => {
-  console.log("\n⚠️  SIGTERM received - shutting down gracefully...");
+  console.log("\n⚠️ SIGTERM received - shutting down gracefully...");
   server.close(() => {
     console.log("✅ Server closed");
     process.exit(0);
@@ -166,7 +177,7 @@ process.on("SIGTERM", () => {
 });
 
 process.on("SIGINT", () => {
-  console.log("\n⚠️  SIGINT received - shutting down gracefully...");
+  console.log("\n⚠️ SIGINT received - shutting down gracefully...");
   server.close(() => {
     console.log("✅ Server closed");
     process.exit(0);

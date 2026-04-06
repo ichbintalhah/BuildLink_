@@ -12,16 +12,11 @@ const getAIRecommendations = async (req, res) => {
 
   try {
     // 1. Fetch all contractors (Skills & Names)
-    const contractors = await Contractor.find().select(
-      "fullName skill _id"
-    );
+    const contractors = await Contractor.find().select("fullName skill _id");
 
     // Create a mini-database string for AI to read
     const contractorList = contractors
-      .map(
-        (c) =>
-          `${c.fullName} (Skill: ${c.skill}, ID: ${c._id})`
-      )
+      .map((c) => `${c.fullName} (Skill: ${c.skill}, ID: ${c._id})`)
       .join(", ");
 
     // 2. Ask Gemini (Updated Model: gemini-1.5-flash)
@@ -89,7 +84,7 @@ const estimateConstructionCost = async (req, res) => {
     const nonConstructionKeywords = ["general", "chat", "how are you", "hello"];
     const queryLower = query.toLowerCase();
     const isGeneralChat = nonConstructionKeywords.some((keyword) =>
-      queryLower.includes(keyword)
+      queryLower.includes(keyword),
     );
 
     if (isGeneralChat && !queryLower.includes("construction")) {
@@ -137,14 +132,14 @@ const estimateConstructionCost = async (req, res) => {
       - Gravel: Rs. ${prices.gravel} per ton
       - Rebar: Rs. ${prices.rebar} per kg
       
-      IMPORTANT RULES:
-      1. Only provide construction-related estimates
-      2. Use Pakistani market standards and prices
-      3. Consider the ${marlaSize} marla property size
-      4. Provide detailed material breakdown
-      5. Include labor costs
-      6. Estimate timeline based on scope
-      7. Be specific about quantities needed
+      ACCURACY RULES:
+      1. Pakistani Marla has two standards: 225 sq ft (common in Punjab/urban areas) or 272 sq ft (older standard). If the user specifies, use that. Otherwise default to 225 sq ft. Total area = ${marlaSize} × (225 or 272) sq ft — use this in all calculations.
+      2. Only provide construction-related estimates.
+      3. Use ONLY the material prices provided above in the "Default Material Prices" section for cost calculations — do not assume or substitute your own rates. Multiply each material's unit price by the required quantity to get its cost.
+      4. Derive material quantities using standard civil engineering ratios for the given scope area — do not inflate.
+      5. Sum up individual material costs + labor to arrive at the total — the result must be consistent with the provided prices and calculated quantities.
+      6. Calculate timeline by summing realistic phase durations for the specific scope; scale proportionally for small/partial work. --> like in general it take 90 days to build a 5 Marla Double story house with the team of 5 mens. and also show in response that this estimation is based on the team of 5 mens.
+      7. Recheck your estimations on internet and Never over-estimate to "play it safe" — accuracy over padding.
       
       Provide response in JSON format:
       {
@@ -214,17 +209,25 @@ const summarizeDispute = async (req, res) => {
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const fullPrompt = `
-      You are a professional dispute resolution analyst. Analyze this construction service dispute carefully and provide a fair, balanced analysis.
-      
+      You are a professional dispute resolution analyst. Analyze the following construction service dispute and respond in exactly the structure described below. Do not add any extra sections, symbols, dashes, asterisks, or hashtags anywhere in your response.
+
       ${prompt}
-      
-      Please provide:
-      1. Summary of the dispute
-      2. Analysis of both claims
-      3. Key evidence considerations
-      4. Recommendation for fair resolution
-      
-      Keep the response professional, balanced, and focused on facts.
+
+      Structure your response using exactly these four labeled sections. Write each section heading in all caps followed by a colon, then write the content on the next line. Follow the line limits size strictly.
+
+      MAIN ISSUE:
+      Write exactly 1 line describing the core problem of this dispute.
+
+      SUMMARY:
+      Write exactly 3 lines. Line 1 describes what happened. Line 2 covers what each party claims. Line 3 states the current status of the dispute.
+
+      WHO APPEARS TO BE AT FAULT:
+      Write exactly 2 lines. Line 1 names the party who appears more at fault. Line 2 gives the reason based on available facts and evidence.
+
+      FINAL SUGGESTION FOR ADMIN:
+      Write exactly 2 lines giving a clear and actionable decision recommendation for the admin to resolve this dispute fairly.
+
+      Keep the tone professional, neutral, and fact-based. Do not use any special characters or formatting symbols.
     `;
 
     const result = await model.generateContent(fullPrompt);

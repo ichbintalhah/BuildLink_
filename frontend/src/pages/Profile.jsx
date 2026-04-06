@@ -31,11 +31,13 @@ const Profile = () => {
   const fileInputRef = useRef(null);
   const portfolioInputRef = useRef(null);
   const [profilePreview, setProfilePreview] = useState(null);
+  const [profilePictureFile, setProfilePictureFile] = useState(null);
   const [portfolioImages, setPortfolioImages] = useState([]);
   const [formData, setFormData] = useState({
     fullName: "",
     phone: "",
     address: "",
+    location: "",
     skill: "",
     teamType: "",
     paymentMethod: "",
@@ -92,6 +94,7 @@ const Profile = () => {
         fullName: user.fullName || "",
         phone: user.phone || "",
         address: user.address || "",
+        location: user.location || "",
         skill: pickedSkill,
         teamType: user.contractorDetails?.teamType || "Individual",
         paymentMethod: pickedPaymentMethod,
@@ -127,10 +130,11 @@ const Profile = () => {
   const handleProfileFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      setProfilePictureFile(file);
       const reader = new FileReader();
       reader.onloadend = () => setProfilePreview(reader.result);
       reader.readAsDataURL(file);
-      toast.success("Profile picture updated (preview)");
+      toast.success("Profile picture selected (click Save to upload)");
     }
   };
 
@@ -154,6 +158,31 @@ const Profile = () => {
     e.preventDefault();
     setLoading(true);
     try {
+      // Upload profile picture first if changed
+      if (profilePictureFile) {
+        const formData = new FormData();
+        formData.append("profilePicture", profilePictureFile);
+
+        const { data: pictureData } = await api.put(
+          "/users/profile-picture",
+          formData,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+          },
+        );
+
+        // Update user context with new profile picture
+        setUser(pictureData.user);
+        toast.success("Profile picture updated!");
+
+        // Clear the file and preview after successful upload
+        setProfilePictureFile(null);
+        setProfilePreview(null);
+      }
+
+      // Update other profile data
       const isMobileWallet = (method) =>
         ["EasyPaisa", "JazzCash", "Sadapay", "Nayapay"].includes(method);
 
@@ -166,6 +195,7 @@ const Profile = () => {
         fullName: formData.fullName,
         phone: formData.phone,
         address: formData.address,
+        location: formData.location,
         contractorDetails: {
           paymentMethod: formData.paymentMethod,
           paymentAccount: normalizedPaymentAccount,
@@ -192,7 +222,7 @@ const Profile = () => {
       setUser(data);
     } catch (error) {
       console.error(error);
-      toast.error("Failed to update profile.");
+      toast.error(error.response?.data?.message || "Failed to update profile.");
     } finally {
       setLoading(false);
     }
@@ -510,6 +540,20 @@ const Profile = () => {
                       value={formData.address}
                       onChange={handleChange}
                       className="input input-bordered"
+                      required
+                    />
+                  </div>
+                  <div className="form-control md:col-span-2">
+                    <label className="label font-semibold">
+                      Location (City/Area)
+                    </label>
+                    <input
+                      name="location"
+                      value={formData.location}
+                      onChange={handleChange}
+                      className="input input-bordered"
+                      placeholder="e.g. Lahore, DHA"
+                      required
                     />
                   </div>
                 </div>

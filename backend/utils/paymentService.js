@@ -30,10 +30,10 @@ const calculateDisputeSplit = (totalAmount, verdict) => {
   let result = {};
 
   switch (verdict) {
-    // User is at fault: 5% admin + 95% to contractor
+    // User is at fault: 5% admin + 95% to contractor (remainder method)
     case "Release":
-      result.adminAmount = totalAmount * ADMIN_COMMISSION_RATE;
-      result.contractorAmount = totalAmount - result.adminAmount;
+      result.adminAmount = Math.round(totalAmount * ADMIN_COMMISSION_RATE * 100) / 100;
+      result.contractorAmount = Math.round((totalAmount - result.adminAmount) * 100) / 100;
       result.userAmount = 0;
       break;
 
@@ -45,21 +45,23 @@ const calculateDisputeSplit = (totalAmount, verdict) => {
       break;
 
     // Split decision: 5% admin + 95% split equally (47.5% each)
+    // Uses remainder method at every step so admin + user + contractor === totalAmount
     case "Split":
-      result.adminAmount = totalAmount * ADMIN_COMMISSION_RATE;
-      const remaining = totalAmount - result.adminAmount; // 95% of total
-      result.userAmount = remaining / 2; // 47.5% of total
-      result.contractorAmount = remaining / 2; // 47.5% of total
+      result.adminAmount = Math.round(totalAmount * ADMIN_COMMISSION_RATE * 100) / 100;
+      const remaining = Math.round((totalAmount - result.adminAmount) * 100) / 100;
+      result.userAmount = Math.round((remaining / 2) * 100) / 100;
+      result.contractorAmount = Math.round((remaining - result.userAmount) * 100) / 100;
       break;
 
     default:
       throw new Error(`Invalid verdict: ${verdict}`);
   }
 
+  // Values are already rounded via remainder method above
   return {
-    adminAmount: Math.round(result.adminAmount * 100) / 100, // Round to 2 decimals
-    userAmount: Math.round(result.userAmount * 100) / 100,
-    contractorAmount: Math.round(result.contractorAmount * 100) / 100,
+    adminAmount: result.adminAmount,
+    userAmount: result.userAmount,
+    contractorAmount: result.contractorAmount,
   };
 };
 
@@ -69,13 +71,12 @@ const calculateDisputeSplit = (totalAmount, verdict) => {
  * @returns {Object} { adminAmount, contractorAmount }
  */
 const calculateNormalPayment = (totalAmount) => {
-  const adminAmount = totalAmount * ADMIN_COMMISSION_RATE;
-  const contractorAmount = totalAmount - adminAmount;
+  // Remainder method: round admin first, then contractor = total − roundedAdmin
+  // This guarantees adminAmount + contractorAmount === totalAmount exactly.
+  const adminAmount = Math.round(totalAmount * ADMIN_COMMISSION_RATE * 100) / 100;
+  const contractorAmount = Math.round((totalAmount - adminAmount) * 100) / 100;
 
-  return {
-    adminAmount: Math.round(adminAmount * 100) / 100,
-    contractorAmount: Math.round(contractorAmount * 100) / 100,
-  };
+  return { adminAmount, contractorAmount };
 };
 
 /**

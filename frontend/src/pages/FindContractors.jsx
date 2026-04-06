@@ -51,6 +51,7 @@ const FindContractors = () => {
     "Painter",
     "Welder",
     "HVAC",
+    "Heavy Duty Construction",
   ];
 
   return (
@@ -59,6 +60,13 @@ const FindContractors = () => {
 
       {/* --- HEADER SECTION --- */}
       <div className="bg-primary text-primary-content pt-16 pb-24 px-6 text-center relative overflow-hidden">
+        <div
+          className="absolute inset-0 bg-cover bg-center opacity-20"
+          style={{
+            backgroundImage:
+              "url('https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=1200&q=80')",
+          }}
+        ></div>
         <div className="relative z-10 max-w-2xl mx-auto">
           <h1 className="text-4xl md:text-5xl font-bold mb-4">Find Your Pro</h1>
           <p className="opacity-90 text-lg">
@@ -66,7 +74,6 @@ const FindContractors = () => {
             project.
           </p>
         </div>
-        <div className="absolute top-0 left-0 w-full h-full opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 -mt-10 pb-20 relative z-20">
@@ -140,12 +147,20 @@ const FindContractors = () => {
                   {/* Card Header */}
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-4">
-                      <div className="avatar placeholder">
-                        {/* FIXED: Added 'flex items-center justify-center' */}
-                        <div className="bg-neutral text-neutral-content rounded-full w-14 h-14 ring ring-base-200 ring-offset-2 flex items-center justify-center">
-                          <span className="text-2xl font-bold">
-                            {contractor.fullName[0]}
-                          </span>
+                      <div className="avatar">
+                        <div className="w-14 h-14 rounded-full ring ring-base-200 ring-offset-2">
+                          {contractor.profilePicture ? (
+                            <img
+                              src={contractor.profilePicture}
+                              alt={contractor.fullName}
+                            />
+                          ) : (
+                            <div className="bg-neutral text-neutral-content rounded-full w-full h-full flex items-center justify-center">
+                              <span className="text-2xl font-bold">
+                                {contractor.fullName[0]}
+                              </span>
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div>

@@ -57,6 +57,11 @@ const contractorSchema = new mongoose.Schema(
     rating: { type: Number, default: 0 },
     totalReviews: { type: Number, default: 0 },
 
+    // Identity verification via AI face-match (CNIC vs Selfie)
+    identityVerified: { type: Boolean, default: false },
+    identityConfidence: { type: Number, default: 0 },
+    identityReason: { type: String, default: "" },
+
     isVerified: { type: Boolean, default: false },
     verificationToken: { type: String },
     verificationTokenExpire: { type: Date },

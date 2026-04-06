@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import api from "../services/api";
 import toast from "react-hot-toast";
 import { Upload, X, CheckCircle } from "lucide-react";
@@ -6,6 +7,28 @@ import { Upload, X, CheckCircle } from "lucide-react";
 const CompletionModal = ({ booking, onClose, onSuccess }) => {
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = "auto";
+    };
+  }, []);
+
+  // Check if this is a milestone-based heavy duty construction job
+  const isHeavyDuty =
+    booking?.bookingType === "heavy-duty-construction" &&
+    booking?.paymentSchedule &&
+    booking?.paymentSchedule.length > 0;
+
+  const currentMilestoneIdx = booking?.currentMilestone || 0;
+  const currentMilestone = isHeavyDuty
+    ? booking.paymentSchedule[currentMilestoneIdx]
+    : null;
+  const isLastMilestone = isHeavyDuty
+    ? currentMilestoneIdx === booking.paymentSchedule.length - 1
+    : false;
 
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
@@ -28,18 +51,28 @@ const CompletionModal = ({ booking, onClose, onSuccess }) => {
         status: "Completed",
         completionImages: images,
       });
-      toast.success("Job Marked Completed!");
+
+      if (isHeavyDuty && !isLastMilestone) {
+        toast.success(
+          `Milestone ${currentMilestoneIdx + 1} submitted! Waiting for client approval.`,
+        );
+      } else {
+        toast.success("Job Marked Completed!");
+      }
+
       onSuccess();
       onClose();
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to complete job");
+      const errorMsg =
+        error.response?.data?.message || "Failed to complete job";
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="fixed inset-0 bg-black/60 z-[999] flex justify-center items-center p-4">
+  const modalContent = (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
       <div className="bg-base-100 w-full max-w-lg rounded-xl shadow-2xl p-6 relative">
         <button
           onClick={onClose}
@@ -48,10 +81,39 @@ const CompletionModal = ({ booking, onClose, onSuccess }) => {
           <X size={20} />
         </button>
 
-        <h3 className="text-2xl font-bold mb-2">Job Completion Proof</h3>
-        <p className="text-sm opacity-70 mb-6">
+        <h3 className="text-2xl font-bold mb-2 flex items-center gap-2">
+          {isHeavyDuty ? "🏗️" : "✅"}{" "}
+          {isHeavyDuty
+            ? `Milestone ${currentMilestoneIdx + 1}/${booking.paymentSchedule.length} Completion`
+            : "Job Completion Proof"}
+        </h3>
+        <p className="text-sm opacity-70 mb-4">
           Upload 2 photos of the finished work to receive payment.
         </p>
+
+        {isHeavyDuty && currentMilestone && (
+          <div className="bg-gradient-to-r from-primary/10 to-secondary/10 p-4 rounded-lg border-2 border-primary/30 mb-4">
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <div className="opacity-60 font-semibold">Days Required</div>
+                <div className="font-bold text-primary">
+                  {currentMilestone.daysCompleted} days
+                </div>
+              </div>
+              <div>
+                <div className="opacity-60 font-semibold">Payment Amount</div>
+                <div className="font-bold text-success">
+                  Rs. {currentMilestone.amount}
+                </div>
+              </div>
+            </div>
+            {isLastMilestone && (
+              <div className="mt-2 text-xs text-success font-bold">
+                🎉 This is the final milestone!
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-4 mb-4">
           {images.map((img, idx) => (
@@ -84,12 +146,17 @@ const CompletionModal = ({ booking, onClose, onSuccess }) => {
             <span className="loading loading-spinner"></span>
           ) : (
             <>
-              <CheckCircle size={18} /> Submit & Finish Job
+              <CheckCircle size={18} />{" "}
+              {isHeavyDuty && !isLastMilestone
+                ? `Submit Milestone ${currentMilestoneIdx + 1}`
+                : "Submit & Finish Job"}
             </>
           )}
         </button>
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 };
 export default CompletionModal;

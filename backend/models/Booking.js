@@ -36,6 +36,7 @@ const bookingSchema = new mongoose.Schema(
     // Payment & Proof
     paymentScreenshot: { type: String },
     completionImages: [{ type: String }], // Mandatory 2 images when contractor marks done
+    problemImages: [{ type: String }], // Images uploaded by user when creating custom booking
 
     // NEW: Completion Proof Tracking
     completedAt: { type: Date }, // When contractor marked job done
@@ -60,6 +61,16 @@ const bookingSchema = new mongoose.Schema(
       ],
       default: "Pending",
     },
+    paymentVerificationStatus: {
+      type: String,
+      enum: ["Pending", "Approved", "Rejected"],
+      default: "Pending",
+    },
+    paymentVerifiedAt: { type: Date },
+    paymentVerifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    paymentRejectionReason: { type: String },
+    paymentDecisionAmount: { type: Number },
+    paymentDecisionMilestoneNumber: { type: Number },
     paymentHoldUntil: { type: Date }, // For 48-hour dispute hold
 
     // Phone Number Sharing - visible only after contractor accepts + payment complete + admin approves
@@ -67,6 +78,56 @@ const bookingSchema = new mongoose.Schema(
 
     // Dispute Reference
     dispute: { type: mongoose.Schema.Types.ObjectId, ref: "Dispute" }, // Link to dispute if one exists
+
+    // Heavy Duty Construction specific fields
+    bookingType: {
+      type: String,
+      enum: ["regular", "heavy-duty-construction"],
+      default: "regular",
+    },
+    paymentSchedule: [
+      {
+        paymentNumber: Number,
+        date: String,
+        amount: Number,
+        daysCompleted: Number,
+        status: { type: String, enum: ["pending", "paid"], default: "pending" },
+        workflowState: {
+          type: String,
+          enum: [
+            "pending_payment",
+            "payment_submitted",
+            "funded",
+            "in_progress",
+            "completed",
+            "approved",
+            "auto_released",
+            "expired_non_payment",
+          ],
+          default: "pending_payment",
+        },
+        paymentScreenshot: { type: String }, // Payment proof for this milestone
+        paymentVerifiedAt: { type: Date }, // When admin verified this milestone payment
+        releasedAt: { type: Date }, // When payment for this milestone was released
+        autoReleasedAt: { type: Date }, // When milestone was auto-released by scheduler
+        completionImages: [{ type: String }], // Images for this milestone
+        completedAt: { type: Date }, // When this milestone was marked complete
+        satisfactionDeadline: { type: Date }, // When user must approve/dispute by (3 hours after contractor submits completion)
+        milestoneDeadline: { type: Date }, // When contractor must upload images by (exact milestone completion deadline)
+        milestoneStartDate: { type: Date }, // When this milestone period starts
+        startDay: { type: Number }, // Starting day of this milestone work period
+        endDay: { type: Number }, // Ending day of this milestone work period
+      },
+    ],
+    currentMilestone: { type: Number, default: 0 }, // Track which payment milestone is currently active (0-based index)
+    isCustomJob: { type: Boolean, default: false },
+    conversationId: { type: mongoose.Schema.Types.ObjectId, ref: "Message" },
+
+    // Client contact info (visible only after payment approved by admin)
+    clientPhone: { type: String },
+    clientAddress: { type: String },
+    clientArea: { type: String }, // Location/nearest area
+    description: { type: String }, // Project description for heavy duty construction
 
     status: {
       type: String,
@@ -84,11 +145,12 @@ const bookingSchema = new mongoose.Schema(
         "Rejected",
         "Disputed",
         "Incomplete",
+        "Expired_Non_Payment",
       ],
       default: "Pending_Approval",
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // STEP 5: Database indexes for frequently queried fields

@@ -1,13 +1,20 @@
-import { useState } from "react";
+import { useState, useContext, useEffect } from "react";
 import api from "../services/api";
 import { Bot, Send, User, Star, ArrowRight, MessageCircle } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
+import { AuthContext } from "../context/AuthContext";
+import BookingModal from "../components/BookingModal";
+import HeavyDutyBookingModal from "../components/HeavyDutyBookingModal";
 
 const FindPro = () => {
   const [query, setQuery] = useState("");
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [selectedContractor, setSelectedContractor] = useState(null);
+
+  const { user } = useContext(AuthContext);
+  const navigate = useNavigate();
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -25,6 +32,29 @@ const FindPro = () => {
       setLoading(false);
     }
   };
+
+  const handleBookClick = (contractor) => {
+    if (!user) {
+      toast.error("Please login to book a contractor");
+      navigate("/login");
+    } else {
+      setSelectedContractor(contractor);
+    }
+  };
+
+  // Open modal after contractor is selected
+  useEffect(() => {
+    if (selectedContractor) {
+      const modalId =
+        selectedContractor.skill === "Heavy Duty Construction"
+          ? "heavy_duty_booking_modal"
+          : "booking_modal";
+      const modalElement = document.getElementById(modalId);
+      if (modalElement) {
+        modalElement.showModal();
+      }
+    }
+  }, [selectedContractor]);
 
   return (
     <div className="min-h-screen bg-base-200 py-10 px-4">
@@ -94,9 +124,27 @@ const FindPro = () => {
                   className="card bg-base-100 shadow-md border border-base-300 hover:shadow-xl transition-all"
                 >
                   <div className="card-body">
-                    <h2 className="card-title text-primary">
-                      <User /> {contractor.fullName}
-                    </h2>
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="avatar">
+                        <div className="w-12 h-12 rounded-full ring ring-primary ring-offset-2">
+                          {contractor.profilePicture ? (
+                            <img
+                              src={contractor.profilePicture}
+                              alt={contractor.fullName}
+                            />
+                          ) : (
+                            <div className="bg-primary text-primary-content rounded-full w-full h-full flex items-center justify-center">
+                              <span className="text-lg font-bold">
+                                {contractor.fullName[0]}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <h2 className="card-title text-primary">
+                        {contractor.fullName}
+                      </h2>
+                    </div>
                     <p className="text-sm opacity-70">
                       Expert {contractor.skill} •{" "}
                       {contractor.teamType || "Individual"}
@@ -139,11 +187,7 @@ const FindPro = () => {
                       <button
                         className="btn btn-sm btn-outline btn-success"
                         title="Book a service with this contractor"
-                        onClick={() => {
-                          // Navigate to booking page or show booking modal
-                          toast.success("Redirecting to booking...");
-                          // You can add booking flow here
-                        }}
+                        onClick={() => handleBookClick(contractor)}
                       >
                         <MessageCircle size={16} /> Book Now
                       </button>
@@ -164,6 +208,10 @@ const FindPro = () => {
           </div>
         )}
       </div>
+
+      {/* Booking Modals - Always render so they exist in DOM */}
+      <BookingModal contractor={selectedContractor} />
+      <HeavyDutyBookingModal contractor={selectedContractor} />
     </div>
   );
 };

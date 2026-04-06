@@ -9,6 +9,9 @@ const {
   forgotPassword,
   resetPassword,
 } = require("../controllers/authController");
+const {
+  verifyContractorIdentity,
+} = require("../controllers/faceVerificationController");
 const router = express.Router();
 
 // Configure multer for in-memory file storage
@@ -48,5 +51,15 @@ router.post("/verify/confirm", verifyAccount);
 // OTP Routes
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);
+
+// Standalone face-verification route (CNIC vs Selfie)
+router.post(
+  "/verify-identity",
+  upload.fields([
+    { name: "cnicFront", maxCount: 1 },
+    { name: "selfie", maxCount: 1 },
+  ]),
+  verifyContractorIdentity,
+);
 
 module.exports = router;

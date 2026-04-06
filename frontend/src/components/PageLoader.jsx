@@ -38,14 +38,14 @@ const PageLoader = ({ isLoading = false, message = "Loading..." }) => {
 
           {/* SCATTERED ROCK PIECES */}
           <div className="rock-pieces">
-            {[...Array(8)].map((_, i) => (
+            {[...Array(20)].map((_, i) => (
               <div key={i} className={`piece piece-${i}`}></div>
             ))}
           </div>
 
           {/* IMPACT DUST */}
           <div className="impact-dust">
-            {[...Array(5)].map((_, i) => (
+            {[...Array(12)].map((_, i) => (
               <div key={i} className="dust-particle"></div>
             ))}
           </div>

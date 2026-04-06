@@ -7,15 +7,20 @@ import {
   ArrowUpRight,
   AlertTriangle,
   BookOpen,
+  History,
   Users,
   Wrench,
+  Settings,
+  BarChart3,
 } from "lucide-react";
 import api from "../services/api";
 
 // Sub-Pages & Components
 import AdminDashboard from "./AdminDashboard";
 import ContractorDashboard from "./ContractorDashboard";
+import ContractorMessages from "./ContractorMessages";
 import UserDashboard from "./UserDashboard";
+import UserMessages from "./UserMessages";
 import DisputesPage from "./DisputesPage";
 import EarningsHistory from "../components/EarningsHistory"; // ✅ Import Earnings Component
 
@@ -41,65 +46,15 @@ const Dashboard = () => {
 
     const fetchCounts = async () => {
       try {
-        const [
-          bookingsRes,
-          disputesRes,
-          withdrawalsRes,
-          usersRes,
-          contractorsRes,
-        ] = await Promise.allSettled([
-          api.get("/bookings/admin/all?limit=100"),
-          api.get("/disputes"),
-          api.get("/wallet/admin/requests"),
-          api.get("/users/admin/users"),
-          api.get("/users/admin/contractors"),
-        ]);
-
-        const counts = {
-          payments: 0,
-          withdrawals: 0,
-          disputes: 0,
-          bookings: 0,
-          users: 0,
-          contractors: 0,
-        };
-
-        // Count Bookings with Verification_Pending status
-        if (bookingsRes.status === "fulfilled") {
-          const bookingData = bookingsRes.value.data;
-          const allBookings = Array.isArray(bookingData)
-            ? bookingData
-            : bookingData.bookings || [];
-          counts.bookings = allBookings.length;
-          counts.payments = allBookings.filter(
-            (b) => b.status === "Verification_Pending"
-          ).length;
-        }
-
-        // Count Disputes
-        if (disputesRes.status === "fulfilled") {
-          counts.disputes = (disputesRes.value.data || []).length;
-        }
-
-        // Count Withdrawals (only pending ones)
-        if (withdrawalsRes.status === "fulfilled") {
-          const allWithdrawals = withdrawalsRes.value.data || [];
-          counts.withdrawals = allWithdrawals.filter(
-            (w) => w.status === "Pending"
-          ).length;
-        }
-
-        // Count Users
-        if (usersRes.status === "fulfilled") {
-          counts.users = (usersRes.value.data || []).length;
-        }
-
-        // Count Contractors
-        if (contractorsRes.status === "fulfilled") {
-          counts.contractors = (contractorsRes.value.data || []).length;
-        }
-
-        setAdminCounts(counts);
+        const { data } = await api.get("/dashboard/admin/counts");
+        setAdminCounts({
+          payments: data?.payments || 0,
+          withdrawals: data?.withdrawals || 0,
+          disputes: data?.disputes || 0,
+          bookings: data?.bookings || 0,
+          users: data?.users || 0,
+          contractors: data?.contractors || 0,
+        });
       } catch (error) {
         console.error("Error fetching admin counts:", error);
       }
@@ -115,41 +70,94 @@ const Dashboard = () => {
   const adminNavItems = [
     {
       id: "payments",
-      label: "Payments",
+      label: "Pay Approvals",
       icon: <DollarSign size={20} />,
       count: adminCounts.payments,
+      showBadge: true,
     },
     {
       id: "withdrawals",
       label: "Withdrawals",
       icon: <ArrowUpRight size={20} />,
       count: adminCounts.withdrawals,
+      showBadge: true,
     },
     {
       id: "disputes",
       label: "Disputes",
       icon: <AlertTriangle size={20} />,
       count: adminCounts.disputes,
+      showBadge: true,
     },
     {
       id: "bookings",
       label: "Bookings",
       icon: <BookOpen size={20} />,
       count: adminCounts.bookings,
+      showBadge: true,
     },
     {
       id: "users",
       label: "Users",
       icon: <Users size={20} />,
       count: adminCounts.users,
+      showBadge: true,
     },
     {
       id: "contractors",
       label: "Contractors",
       icon: <Wrench size={20} />,
       count: adminCounts.contractors,
+      showBadge: true,
+    },
+    {
+      id: "finance-history",
+      label: "History",
+      icon: <History size={20} />,
+      showBadge: false,
+    },
+    {
+      id: "analytics",
+      label: "Analytics",
+      icon: <BarChart3 size={20} />,
+      showBadge: false,
+    },
+    {
+      id: "settings",
+      label: "Settings",
+      icon: <Settings size={20} />,
+      showBadge: false,
     },
   ];
+
+  // --- NOTIFICATION NAVIGATION STATE ---
+  // Store notification state separately so it persists through re-renders
+  // and can be cleared after being consumed by the child dashboard.
+  const [notifState, setNotifState] = useState({});
+
+  // When location.state changes (from notification click), capture it
+  useEffect(() => {
+    const locState = location.state;
+    if (!locState) return;
+
+    // Allow direct navigation to a specific admin tab from links/buttons.
+    if (locState.adminView && user?.role === "admin") {
+      setAdminView(locState.adminView);
+    }
+
+    if (locState.fromNotification) {
+      setNotifState({ ...locState });
+
+      // Clear location.state so refreshing the page doesn't re-trigger
+      window.history.replaceState({}, "");
+      return;
+    }
+
+    if (locState.adminView) {
+      // Clear one-time route state after applying admin tab navigation.
+      window.history.replaceState({}, "");
+    }
+  }, [location.state, location.key, user?.role]);
 
   // --- ROUTING LOGIC ---
 
@@ -166,15 +174,23 @@ const Dashboard = () => {
   if (location.pathname.includes("/earnings")) {
     return (
       <DashboardLayout>
-        <div className="p-6 max-w-7xl mx-auto">
-          <h1 className="text-3xl font-bold mb-6">Earnings History</h1>
+        <div className="max-w-7xl mx-auto">
           <EarningsHistory />
         </div>
       </DashboardLayout>
     );
   }
 
-  // 3. DEFAULT: Main Dashboard based on Role
+  // 3. ✅ Check for Messages Page
+  if (location.pathname.includes("/messages")) {
+    return (
+      <DashboardLayout>
+        {user.role === "contractor" ? <ContractorMessages /> : <UserMessages />}
+      </DashboardLayout>
+    );
+  }
+
+  // 4. DEFAULT: Main Dashboard based on Role
   if (user.role === "admin") {
     return (
       <DashboardLayout
@@ -182,14 +198,15 @@ const Dashboard = () => {
         adminView={adminView}
         onAdminViewChange={setAdminView}
       >
-        <AdminDashboard externalView={adminView} />
+        <AdminDashboard externalView={adminView} notifState={notifState} />
       </DashboardLayout>
     );
   }
 
   let content;
-  if (user.role === "contractor") content = <ContractorDashboard />;
-  else content = <UserDashboard />;
+  if (user.role === "contractor")
+    content = <ContractorDashboard notifState={notifState} />;
+  else content = <UserDashboard notifState={notifState} />;
 
   return <DashboardLayout>{content}</DashboardLayout>;
 };

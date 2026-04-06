@@ -1,5 +1,4 @@
 import {
-  Hammer,
   Facebook,
   Twitter,
   Instagram,
@@ -9,6 +8,7 @@ import {
   MapPin,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import BrandLogo from "./BrandLogo";
 
 const Footer = () => {
   return (
@@ -19,12 +19,12 @@ const Footer = () => {
           {/* Brand Column */}
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <Hammer size={28} className="text-primary fill-current" />
-              </div>
-              <span className="text-2xl font-bold tracking-tight">
-                BuildLink
-              </span>
+              <BrandLogo
+                iconSize={28}
+                textSize="text-2xl"
+                iconClassName="text-primary"
+                textClassName="text-primary"
+              />
             </div>
             <p className="opacity-70 text-sm leading-relaxed">
               Pakistan's #1 Marketplace for verified construction professionals.
@@ -138,7 +138,7 @@ const Footer = () => {
               </li>
               <li className="flex items-center gap-3">
                 <Mail size={18} className="text-primary shrink-0" />
-                <span>support@buildlink.pk</span>
+                <span>buildlink.pk@gmail.com</span>
               </li>
             </ul>
           </div>

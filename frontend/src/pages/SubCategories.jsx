@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 
 const SubCategories = () => {
-  const { mainCategory } = useParams(); // e.g., "renovation"
+  const { category } = useParams(); // e.g., "renovation", "modification", "construction"
 
   // Unified List: All trades are available in all categories
   const allTrades = [
@@ -44,7 +44,7 @@ const SubCategories = () => {
   return (
     <div className="min-h-screen bg-base-200 py-10 px-4">
       <h1 className="text-4xl font-bold text-center mb-2 capitalize">
-        {mainCategory} Services
+        {category} Services
       </h1>
       <p className="text-center text-gray-500 mb-10">
         Select a specialist for your project
@@ -54,7 +54,7 @@ const SubCategories = () => {
         {allTrades.map((sub, index) => (
           <Link
             key={index}
-            to={`/jobs/${sub.name.toLowerCase()}`}
+            to={`/jobs/${sub.name.toLowerCase()}?type=${category}`}
             className="card bg-base-100 shadow-xl hover:scale-105 transition-all cursor-pointer border border-base-300"
           >
             <div className="card-body items-center text-center">

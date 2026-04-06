@@ -4,12 +4,14 @@ import api from "../services/api";
 import { AuthContext } from "../context/AuthContext";
 import { MapPin, Star } from "lucide-react";
 import BookingModal from "../components/BookingModal";
+import HeavyDutyBookingModal from "../components/HeavyDutyBookingModal";
 
 const ServiceList = () => {
   const { category } = useParams(); // e.g., "plumber"
   const [searchParams] = useSearchParams();
   const selectedJob = searchParams.get("job"); // "Install Sink"
   const fixedPrice = searchParams.get("price");
+  const isCustom = searchParams.get("isCustom") === "true";
 
   const [contractors, setContractors] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -33,6 +35,7 @@ const ServiceList = () => {
     "glass worker": "Glass Worker",
     helper: "Helper",
     hvac: "HVAC",
+    construction: "Heavy Duty Construction",
   };
 
   const skillParam = skillMap[normalizedCategory] || normalizedCategory;
@@ -71,9 +74,17 @@ const ServiceList = () => {
       navigate("/login");
     } else {
       setSelectedContractor(contractor);
-      document.getElementById("booking_modal").showModal();
+      // Use special modal for heavy duty construction
+      const modalId =
+        normalizedCategory === "construction"
+          ? "heavy_duty_booking_modal"
+          : "booking_modal";
+      document.getElementById(modalId).showModal();
     }
   };
+
+  // Check if this is a heavy duty construction booking
+  const isHeavyDutyConstruction = normalizedCategory === "construction";
 
   return (
     <div className="min-h-screen bg-base-200 py-10 px-4">
@@ -100,12 +111,30 @@ const ServiceList = () => {
             >
               <div className="card-body">
                 <div className="flex justify-between items-start">
-                  <div>
-                    <h2 className="card-title text-2xl">
-                      {contractor.fullName}
-                    </h2>
-                    <div className="badge badge-secondary badge-outline mt-1">
-                      {contractor.teamType}
+                  <div className="flex items-center gap-3">
+                    <div className="avatar">
+                      <div className="w-12 h-12 rounded-full ring ring-primary ring-offset-2">
+                        {contractor.profilePicture ? (
+                          <img
+                            src={contractor.profilePicture}
+                            alt={contractor.fullName}
+                          />
+                        ) : (
+                          <div className="bg-primary text-primary-content rounded-full w-full h-full flex items-center justify-center">
+                            <span className="text-lg font-bold">
+                              {contractor.fullName[0]}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <h2 className="card-title text-2xl">
+                        {contractor.fullName}
+                      </h2>
+                      <div className="badge badge-secondary badge-outline mt-1">
+                        {contractor.teamType}
+                      </div>
                     </div>
                   </div>
                   <div
@@ -147,11 +176,19 @@ const ServiceList = () => {
       )}
 
       {/* Pass selectedJob to the modal so it pre-fills the form */}
-      <BookingModal
-        contractor={selectedContractor}
-        defaultJob={selectedJob}
-        fixedPrice={fixedPrice}
-      />
+      {isHeavyDutyConstruction ? (
+        <HeavyDutyBookingModal
+          contractor={selectedContractor}
+          defaultJob={selectedJob}
+        />
+      ) : (
+        <BookingModal
+          contractor={selectedContractor}
+          defaultJob={selectedJob}
+          fixedPrice={fixedPrice}
+          isCustomJob={isCustom}
+        />
+      )}
     </div>
   );
 };

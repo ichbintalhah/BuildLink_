@@ -6,57 +6,300 @@
 
 /* 1. Smooth Scrolling for the whole HTML */
 html {
-    scroll-behavior: smooth;
+  scroll-behavior: smooth;
 }
 
 /* 2. Brand-colored Text Selection */
 ::selection {
-    background-color: oklch(var(--p));
-    /* Uses your primary brand color */
-    color: white;
+  background-color: oklch(var(--p));
+  /* Uses your primary brand color */
+  color: white;
 }
 
 /* 3. Custom Scrollbar (Chrome/Edge/Safari) */
 ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-    background: transparent;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-    background-color: #cbd5e1;
-    /* Light grey */
-    border-radius: 20px;
-    border: 3px solid transparent;
-    background-clip: content-box;
+  background-color: #cbd5e1;
+  /* Light grey */
+  border-radius: 20px;
+  border: 3px solid transparent;
+  background-clip: content-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background-color: oklch(var(--p));
-    /* Brand color on hover */
+  background-color: oklch(var(--p));
+  /* Brand color on hover */
 }
 
 /* 4. Remove highlight tap color on mobile */
 * {
-    -webkit-tap-highlight-color: transparent;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Use only our custom password visibility icon on marked fields */
+.hide-native-password-toggle::-ms-reveal,
+.hide-native-password-toggle::-ms-clear {
+  display: none;
+}
+
+.hide-native-password-toggle::-webkit-credentials-auto-fill-button,
+.hide-native-password-toggle::-webkit-contacts-auto-fill-button {
+  visibility: hidden;
+  display: none !important;
+  pointer-events: none;
+  height: 0;
+  width: 0;
+  margin: 0;
 }
 
 /* 5. Custom Animations */
 @keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
 
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .animate-fade-in {
-    animation: fadeIn 0.4s ease-out forwards;
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+/* 6. Enhanced Navbar Dropdown Animations */
+@keyframes dropdownSlide {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes dropdownSlideRight {
+  from {
+    opacity: 0;
+    transform: translateX(-10px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes notification-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes pulse-border {
+  0%,
+  100% {
+    border-color: currentColor;
+    box-shadow: 0 0 0 0 currentColor;
+  }
+  50% {
+    border-color: currentColor;
+    box-shadow: 0 0 0 4px transparent;
+  }
+}
+
+/* Hover ripple effect */
+@keyframes ripple {
+  0% {
+    transform: scale(0);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+/* Smooth backdrop blur in */
+@keyframes backdropBlur {
+  from {
+    backdrop-filter: blur(0px);
+  }
+  to {
+    backdrop-filter: blur(8px);
+  }
+}
+
+/* Additional smooth transitions */
+.dropdown-item-hover {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dropdown-item-hover:hover {
+  transform: translateX(4px);
+}
+
+/* ===== PAGE ENTRY ANIMATIONS ===== */
+
+/* Fade up — primary entrance for sections */
+@keyframes animFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Fade down — navbar entrance */
+@keyframes animFadeDown {
+  from {
+    opacity: 0;
+    transform: translateY(-18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Scale fade — for hero badge, stats, feature cards */
+@keyframes animScaleFade {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Slide in from left */
+@keyframes animSlideLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Slide in from right */
+@keyframes animSlideRight {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Blur fade — premium reveal for hero text */
+@keyframes animBlurFade {
+  from {
+    opacity: 0;
+    filter: blur(8px);
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+/* Stagger-ready utility classes */
+.anim-fade-up {
+  opacity: 0;
+  animation: animFadeUp 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.anim-fade-down {
+  opacity: 0;
+  animation: animFadeDown 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.anim-scale-fade {
+  opacity: 0;
+  animation: animScaleFade 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.anim-slide-left {
+  opacity: 0;
+  animation: animSlideLeft 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.anim-slide-right {
+  opacity: 0;
+  animation: animSlideRight 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.anim-blur-fade {
+  opacity: 0;
+  animation: animBlurFade 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Delay helpers (lightweight staggering) */
+.anim-delay-100 { animation-delay: 100ms; }
+.anim-delay-200 { animation-delay: 200ms; }
+.anim-delay-300 { animation-delay: 300ms; }
+.anim-delay-400 { animation-delay: 400ms; }
+.anim-delay-500 { animation-delay: 500ms; }
+.anim-delay-600 { animation-delay: 600ms; }
+.anim-delay-700 { animation-delay: 700ms; }
+.anim-delay-800 { animation-delay: 800ms; }
+
+/* Scroll-triggered reveal — starts invisible, animated via IntersectionObserver */
+.anim-on-scroll {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.anim-on-scroll.anim-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Respect reduced-motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .anim-fade-up,
+  .anim-fade-down,
+  .anim-scale-fade,
+  .anim-slide-left,
+  .anim-slide-right,
+  .anim-blur-fade {
+    animation: none;
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+  .anim-on-scroll {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
 }

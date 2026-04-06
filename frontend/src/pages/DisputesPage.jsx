@@ -4,7 +4,14 @@ import api from "../services/api";
 import { AuthContext } from "../context/AuthContext";
 import toast from "react-hot-toast";
 import PageLoader from "../components/PageLoader";
-import { AlertTriangle, Upload, Shield, Clock } from "lucide-react";
+import ImagePreviewModal from "../components/ImagePreviewModal";
+import {
+  AlertTriangle,
+  Upload,
+  Shield,
+  User as UserIcon,
+  Wrench,
+} from "lucide-react";
 
 const DisputesPage = () => {
   const { user } = useContext(AuthContext);
@@ -24,6 +31,8 @@ const DisputesPage = () => {
   // Contractor Defense State
   const [defenseText, setDefenseText] = useState("");
   const [defenseEvidence, setDefenseEvidence] = useState([]);
+  const [previewImage, setPreviewImage] = useState(null);
+  const [previewAlt, setPreviewAlt] = useState("Dispute evidence");
 
   useEffect(() => {
     loadData();
@@ -75,6 +84,12 @@ const DisputesPage = () => {
       reader.onloadend = () => setter([...currentList, reader.result]);
       reader.readAsDataURL(file);
     }
+  };
+
+  const openImagePreview = (imageUrl, altText = "Dispute evidence") => {
+    if (!imageUrl) return;
+    setPreviewImage(imageUrl);
+    setPreviewAlt(altText);
   };
 
   const submitDispute = async (e) => {
@@ -200,11 +215,21 @@ const DisputesPage = () => {
               </label>
               <div className="flex gap-4 items-center">
                 {evidence.map((img, i) => (
-                  <img
+                  <button
                     key={i}
-                    src={img}
-                    className="h-16 w-16 rounded object-cover border border-base-300"
-                  />
+                    type="button"
+                    onClick={() =>
+                      openImagePreview(img, `Uploaded evidence ${i + 1}`)
+                    }
+                    className="rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    aria-label={`Open uploaded evidence ${i + 1}`}
+                  >
+                    <img
+                      src={img}
+                      alt={`Uploaded evidence ${i + 1}`}
+                      className="h-16 w-16 rounded object-cover border border-base-300 hover:opacity-90 transition-opacity cursor-zoom-in"
+                    />
+                  </button>
                 ))}
                 <label className="btn btn-outline btn-sm gap-2">
                   <Upload size={16} /> Add Photo
@@ -249,6 +274,14 @@ const DisputesPage = () => {
                     {d.booking?.serviceName || "Service Name Unavailable"}
                   </h3>
                   <p className="text-xs opacity-50">ID: {d._id}</p>
+                  {/* Show milestone info for heavy-duty disputes */}
+                  {d.booking?.bookingType === "heavy-duty-construction" &&
+                    d.booking?.currentMilestone !== undefined && (
+                      <div className="mt-2 badge badge-warning badge-sm">
+                        Milestone {(d.booking.currentMilestone || 0) + 1}{" "}
+                        Disputed
+                      </div>
+                    )}
                 </div>
                 <div
                   className={`badge badge-lg ${
@@ -263,17 +296,48 @@ const DisputesPage = () => {
 
               {/* CLAIM SECTION */}
               <div className="mt-4 bg-error/10 p-4 rounded-lg border border-error/20">
-                <p className="font-bold text-error text-xs uppercase mb-1">
-                  User Claim
+                <p className="font-bold text-error text-xs uppercase mb-2">
+                  Homeowner Claim
                 </p>
+                <div className="flex items-center gap-3 mb-2">
+                  {d.user?.profilePicture || d.booking?.user?.profilePicture ? (
+                    <img
+                      src={
+                        d.user?.profilePicture ||
+                        d.booking?.user?.profilePicture
+                      }
+                      alt="User"
+                      className="h-10 w-10 rounded-full object-cover border-2 border-error/30"
+                    />
+                  ) : (
+                    <div className="h-10 w-10 rounded-full bg-error/20 flex items-center justify-center border-2 border-error/30">
+                      <UserIcon size={20} className="text-error" />
+                    </div>
+                  )}
+                  <span className="font-semibold text-base-content">
+                    {d.user?.fullName ||
+                      d.booking?.user?.fullName ||
+                      "Homeowner"}
+                  </span>
+                </div>
                 <p className="text-base-content font-medium">"{d.reason}"</p>
                 <div className="flex gap-2 mt-2">
                   {d.userEvidence?.map((img, i) => (
-                    <img
+                    <button
                       key={i}
-                      src={img}
-                      className="h-12 w-12 rounded border bg-base-100"
-                    />
+                      type="button"
+                      onClick={() =>
+                        openImagePreview(img, `Homeowner evidence ${i + 1}`)
+                      }
+                      className="rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-error"
+                      aria-label={`Open homeowner evidence ${i + 1}`}
+                    >
+                      <img
+                        src={img}
+                        alt={`Homeowner evidence ${i + 1}`}
+                        className="h-12 w-12 rounded border bg-base-100 object-cover hover:opacity-90 transition-opacity cursor-zoom-in"
+                      />
+                    </button>
                   ))}
                 </div>
               </div>
@@ -285,7 +349,21 @@ const DisputesPage = () => {
                   <div className="mt-4 p-4 bg-base-200 rounded-lg border border-base-300">
                     <p className="font-bold text-primary text-xs uppercase mb-2">
                       Your Defense
+                      {d.booking?.bookingType === "heavy-duty-construction" &&
+                        d.booking?.currentMilestone !== undefined && (
+                          <span className="ml-2 text-warning font-normal">
+                            (Milestone {(d.booking.currentMilestone || 0) + 1})
+                          </span>
+                        )}
                     </p>
+                    {d.booking?.bookingType === "heavy-duty-construction" && (
+                      <div className="text-xs bg-info/20 p-2 rounded border border-info/30 mb-3">
+                        ℹ️ This dispute is for Milestone{" "}
+                        {(d.booking.currentMilestone || 0) + 1}. Explain your
+                        work and provide evidence to defend your milestone
+                        completion.
+                      </div>
+                    )}
                     <textarea
                       className="textarea textarea-bordered w-full bg-base-100 text-base-content"
                       placeholder="Explain your side..."
@@ -306,11 +384,24 @@ const DisputesPage = () => {
                         />
                       </label>
                       {defenseEvidence.map((img, i) => (
-                        <img
+                        <button
                           key={i}
-                          src={img}
-                          className="h-8 w-8 rounded border"
-                        />
+                          type="button"
+                          onClick={() =>
+                            openImagePreview(
+                              img,
+                              `Defense upload evidence ${i + 1}`,
+                            )
+                          }
+                          className="rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                          aria-label={`Open defense upload evidence ${i + 1}`}
+                        >
+                          <img
+                            src={img}
+                            alt={`Defense upload evidence ${i + 1}`}
+                            className="h-8 w-8 rounded border object-cover hover:opacity-90 transition-opacity cursor-zoom-in"
+                          />
+                        </button>
                       ))}
                     </div>
 
@@ -325,18 +416,70 @@ const DisputesPage = () => {
 
               {d.contractorDefense && (
                 <div className="mt-4 bg-primary/10 p-4 rounded-lg border border-primary/20">
-                  <p className="font-bold text-primary text-xs uppercase mb-1">
+                  <p className="font-bold text-primary text-xs uppercase mb-2">
                     Contractor Defense
                   </p>
+                  <div className="flex items-center gap-3 mb-2">
+                    {d.contractor?.profilePicture ||
+                    d.booking?.contractor?.profilePicture ? (
+                      <img
+                        src={
+                          d.contractor?.profilePicture ||
+                          d.booking?.contractor?.profilePicture
+                        }
+                        alt="Contractor"
+                        className="h-10 w-10 rounded-full object-cover border-2 border-primary/30"
+                      />
+                    ) : (
+                      <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center border-2 border-primary/30">
+                        <Wrench size={20} className="text-primary" />
+                      </div>
+                    )}
+                    <span className="font-semibold text-base-content">
+                      {d.contractor?.fullName ||
+                        d.booking?.contractor?.fullName ||
+                        "Professional"}
+                    </span>
+                  </div>
                   <p className="text-base-content font-medium">
                     "{d.contractorDefense}"
                   </p>
+                  {d.contractorEvidence?.length > 0 && (
+                    <div className="flex gap-2 mt-2">
+                      {d.contractorEvidence.map((img, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() =>
+                            openImagePreview(
+                              img,
+                              `Contractor evidence ${i + 1}`,
+                            )
+                          }
+                          className="rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                          aria-label={`Open contractor evidence ${i + 1}`}
+                        >
+                          <img
+                            src={img}
+                            alt={`Contractor evidence ${i + 1}`}
+                            className="h-12 w-12 rounded border bg-base-100 object-cover hover:opacity-90 transition-opacity cursor-zoom-in"
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           </div>
         ))}
       </div>
+
+      <ImagePreviewModal
+        imageUrl={previewImage}
+        alt={previewAlt}
+        onClose={() => setPreviewImage(null)}
+      />
     </div>
   );
 };

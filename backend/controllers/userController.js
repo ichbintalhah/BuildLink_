@@ -1,6 +1,7 @@
 const User = require("../models/User");
 const Contractor = require("../models/Contractor");
 const Review = require("../models/Review");
+const uploadToCloudinary = require("../utils/uploadToCloudinary");
 
 // Normalize skill strings so filters are consistent
 const normalizeSkillValue = (skill) => {
@@ -37,9 +38,9 @@ const calculateContractorRating = async (contractorId) => {
     ]);
     return stats.length > 0
       ? {
-        rating: parseFloat(stats[0].averageRating.toFixed(1)),
-        totalReviews: stats[0].numReviews,
-      }
+          rating: parseFloat(stats[0].averageRating.toFixed(1)),
+          totalReviews: stats[0].numReviews,
+        }
       : { rating: 0, totalReviews: 0 };
   } catch (error) {
     console.error(error);
@@ -49,9 +50,18 @@ const calculateContractorRating = async (contractorId) => {
 
 const getAllUsers = async (req, res) => {
   try {
+    const requestedLimit = Number(req.query.limit);
+    const limit = Number.isFinite(requestedLimit)
+      ? Math.min(Math.max(requestedLimit, 1), 200)
+      : 50;
+
     const users = await User.find({ role: "user" })
-      .select("-password")
-      .sort({ createdAt: -1 });
+      .select(
+        "fullName email phone cnic createdAt profilePicture selfie cnicFront cnicBack paymentMethod paymentAccountValue walletBalance",
+      )
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
     res.json(users);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -60,9 +70,18 @@ const getAllUsers = async (req, res) => {
 
 const getAllContractors = async (req, res) => {
   try {
+    const requestedLimit = Number(req.query.limit);
+    const limit = Number.isFinite(requestedLimit)
+      ? Math.min(Math.max(requestedLimit, 1), 200)
+      : 50;
+
     const contractors = await Contractor.find()
-      .select("-password")
-      .sort({ createdAt: -1 });
+      .select(
+        "fullName email phone skill availability availabilityStatus isTrusted createdAt profilePicture selfie cnicFront cnicBack walletBalance",
+      )
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
     res.json(contractors);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -145,9 +164,10 @@ const updateUserProfile = async (req, res) => {
     // If contractor, update Contractor collection and map fields to contractorDetails shape
     if (req.user.role === "contractor") {
       const updates = {};
-      if (body.fullName) updates.fullName = body.fullName;
-      if (body.phone) updates.phone = body.phone;
-      if (body.address) updates.address = body.address;
+      if (body.fullName !== undefined) updates.fullName = body.fullName;
+      if (body.phone !== undefined) updates.phone = body.phone;
+      if (body.address !== undefined) updates.address = body.address;
+      if (body.location !== undefined) updates.location = body.location;
 
       if (body.contractorDetails) {
         const cd = body.contractorDetails;
@@ -188,11 +208,13 @@ const updateUserProfile = async (req, res) => {
 
     // Default: normal user profile update
     const updates = {};
-    if (body.fullName) updates.fullName = body.fullName;
-    if (body.phone) updates.phone = body.phone;
-    if (body.address) updates.address = body.address;
-    if (body.cnic) updates.cnic = body.cnic;
-    if (body.paymentMethod) updates.paymentMethod = body.paymentMethod;
+    if (body.fullName !== undefined) updates.fullName = body.fullName;
+    if (body.phone !== undefined) updates.phone = body.phone;
+    if (body.address !== undefined) updates.address = body.address;
+    if (body.location !== undefined) updates.location = body.location;
+    if (body.cnic !== undefined) updates.cnic = body.cnic;
+    if (body.paymentMethod !== undefined)
+      updates.paymentMethod = body.paymentMethod;
     if (body.paymentAccountValue)
       updates.paymentAccountValue = body.paymentAccountValue;
 
@@ -243,11 +265,24 @@ const updateProfilePicture = async (req, res) => {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    const { profilePictureUrl } = req.body;
-    if (!profilePictureUrl) {
+    let profilePictureUrl;
+
+    // Check if file was uploaded via multer
+    if (req.file) {
+      // Upload to Cloudinary
+      const fileName = `profile_${userId}_${Date.now()}`;
+      profilePictureUrl = await uploadToCloudinary(
+        req.file.buffer,
+        "profile-pictures",
+        fileName,
+      );
+    } else if (req.body.profilePictureUrl) {
+      // Fallback: accept direct URL (for backward compatibility)
+      profilePictureUrl = req.body.profilePictureUrl;
+    } else {
       return res
         .status(400)
-        .json({ message: "Profile picture URL is required" });
+        .json({ message: "Profile picture file or URL is required" });
     }
 
     // Try to update User first
@@ -270,14 +305,15 @@ const updateProfilePicture = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    console.log("✅ Profile picture updated:", {
-      userId,
-      profilePicture: profilePictureUrl,
-    });
+    // console.log("✅ Profile picture updated:", {
+    //   userId,
+    //   profilePicture: profilePictureUrl,
+    // });
 
     res.json({
       message: "Profile picture updated successfully",
       profilePicture: user.profilePicture,
+      user, // Return full user object so frontend can update context
     });
   } catch (error) {
     console.error("Profile Picture Update Error:", error);

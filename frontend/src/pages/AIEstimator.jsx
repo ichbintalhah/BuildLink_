@@ -53,14 +53,17 @@ const AIEstimator = () => {
 
   // Scroll to bottom when messages update
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    messagesEndRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+    });
   }, [messages]);
 
   // Add initial marla prompt if not asked yet
   useEffect(() => {
     if (marlaSize === null && messages.length > 2) {
       const hasMarlaQuestion = messages.some((m) =>
-        m.text.includes("225 sq ft or 272 sq ft Marla?")
+        m.text.includes("225 sq ft or 272 sq ft Marla?"),
       );
       if (!hasMarlaQuestion) {
         const marlaMsg = {
@@ -174,16 +177,13 @@ const AIEstimator = () => {
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-base-100 to-secondary/5">
       {/* Header */}
       <div className="sticky top-0 z-40 bg-gradient-to-r from-primary to-primary/80 text-primary-content shadow-lg">
-        <div className="max-w-6xl mx-auto px-4 py-6 flex justify-between items-center">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <div className="p-3 bg-white/20 backdrop-blur-sm rounded-lg">
-              <Bot size={28} className="fill-current" />
+            <div className="p-2 bg-white/20 backdrop-blur-sm rounded-lg">
+              <Bot size={24} className="fill-current" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold">AI Construction Estimator</h1>
-              <p className="text-sm opacity-90">
-                Powered by Google Gemini 2.5 Flash
-              </p>
+              <h1 className="text-2xl font-bold">AI Construction Estimator</h1>
             </div>
           </div>
 
@@ -209,13 +209,13 @@ const AIEstimator = () => {
         <div className="lg:col-span-3">
           <div className="card bg-base-100 shadow-xl border border-base-200 h-[600px] flex flex-col">
             {/* Chat Messages */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            <div className="flex-1 overflow-y-auto px-6 pt-6 pb-0">
               {messages.map((msg) => (
                 <div
                   key={msg.id}
                   className={`flex ${
                     msg.sender === "user" ? "justify-end" : "justify-start"
-                  } animate-fade-in`}
+                  } animate-fade-in mb-1`}
                 >
                   <div
                     className={`max-w-xs lg:max-w-md xl:max-w-lg rounded-2xl p-4 shadow-sm ${
@@ -268,8 +268,8 @@ const AIEstimator = () => {
                               }\nDays: ${
                                 msg.estimation.estimatedDays
                               }\nMaterials: ${JSON.stringify(
-                                msg.estimation.materials
-                              )}`
+                                msg.estimation.materials,
+                              )}`,
                             )
                           }
                           className="mt-2 btn btn-xs btn-ghost gap-1"
@@ -279,7 +279,7 @@ const AIEstimator = () => {
                       </div>
                     )}
 
-                    <p className="text-xs opacity-50 mt-2">
+                    <p className="text-xs opacity-50 mt-1">
                       {msg.timestamp.toLocaleTimeString()}
                     </p>
                   </div>
@@ -287,7 +287,7 @@ const AIEstimator = () => {
               ))}
 
               {loading && (
-                <div className="flex justify-start">
+                <div className="flex justify-start mb-1">
                   <div className="bg-base-200 text-base-content rounded-2xl rounded-bl-none p-4">
                     <div className="flex gap-2">
                       <div className="w-2 h-2 bg-primary rounded-full animate-bounce"></div>
@@ -297,37 +297,30 @@ const AIEstimator = () => {
                   </div>
                 </div>
               )}
-
-              <div ref={messagesEndRef} />
             </div>
 
             {/* Marla Selection - Only show if not selected */}
             {marlaSize === null && messages.length > 1 && (
-              <div className="border-t border-base-300 p-4 bg-info/10">
-                <div className="flex items-start gap-3 mb-3">
-                  <AlertCircle
-                    size={20}
-                    className="text-info flex-shrink-0 mt-0.5"
-                  />
-                  <div>
-                    <p className="font-bold text-sm">
-                      Select your Marla size first:
-                    </p>
-                    <p className="text-xs opacity-70">
-                      This affects material and cost calculations
-                    </p>
-                  </div>
+              <div className="px-3 py-2 bg-info/10">
+                <div className="flex items-center gap-2">
+                  <AlertCircle size={18} className="text-info flex-shrink-0" />
+                  <p className="font-bold text-sm">
+                    Select your Marla size first:
+                  </p>
                 </div>
+                <p className="text-xs opacity-70 ml-6 mb-2">
+                  This affects material and cost calculations
+                </p>
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleMarlaSelection("225 sq ft")}
-                    className="btn btn-sm btn-outline btn-primary flex-1"
+                    className="btn btn-sm bg-primary hover:bg-primary-focus text-white border-none flex-1"
                   >
                     225 sq ft Marla
                   </button>
                   <button
                     onClick={() => handleMarlaSelection("272 sq ft")}
-                    className="btn btn-sm btn-outline btn-primary flex-1"
+                    className="btn btn-sm bg-primary hover:bg-primary-focus text-white border-none flex-1"
                   >
                     272 sq ft Marla
                   </button>

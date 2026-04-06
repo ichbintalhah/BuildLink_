@@ -3,7 +3,7 @@ const dotenv = require("dotenv");
 const User = require("./models/User");
 const connectDB = require("./config/db");
 
-dotenv.config();
+dotenv.config({ quiet: true });
 connectDB();
 
 const createAdmin = async () => {
@@ -30,8 +30,8 @@ const createAdmin = async () => {
     });
 
     console.log("✅ Admin Account Created Successfully!");
-    console.log("📧 Email: admin@buildlink.com");
-    console.log("🔑 Password: admin123");
+    console.log("Email: admin@buildlink.com");
+    console.log("Password: admin123");
 
     process.exit();
   } catch (error) {

@@ -1,4 +1,4 @@
-import { useContext, useState, useEffect } from "react";
+import { useContext, useState, useEffect, useRef } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
@@ -14,8 +14,10 @@ import {
   Home,
   Clock,
   Trash2,
+  MessageCircle,
 } from "lucide-react";
 import api from "../services/api";
+import BrandLogo from "./BrandLogo";
 
 const DashboardLayout = ({
   children,
@@ -29,6 +31,8 @@ const DashboardLayout = ({
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [notifications, setNotifications] = useState([]);
   const [showNotifPanel, setShowNotifPanel] = useState(false);
+  const notifPanelRef = useRef(null);
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
 
   const fetchNotifications = async () => {
     try {
@@ -43,13 +47,45 @@ const DashboardLayout = ({
     }
   };
 
+  const fetchUnreadMessages = async () => {
+    try {
+      const { data } = await api.get("/messages/unread/count");
+      setUnreadMessagesCount(data.unreadCount || 0);
+    } catch (err) {
+      console.error("Failed to fetch unread messages:", err);
+    }
+  };
+
   useEffect(() => {
-    if (user) fetchNotifications();
+    if (!user) return;
+
+    fetchNotifications();
+    fetchUnreadMessages();
+
     // Poll every 5 seconds for faster notification updates
-    const notifInterval = setInterval(fetchNotifications, 5000);
+    const notifInterval = setInterval(() => {
+      if (!user) return;
+      fetchNotifications();
+      fetchUnreadMessages();
+    }, 5000);
 
     return () => clearInterval(notifInterval);
   }, [user]);
+
+  // Auto-close notification panel when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (notifPanelRef.current && !notifPanelRef.current.contains(e.target)) {
+        setShowNotifPanel(false);
+      }
+    };
+
+    if (showNotifPanel) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () =>
+        document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [showNotifPanel]);
 
   const getRelativeTime = (timestamp) => {
     const now = Date.now();
@@ -73,8 +109,169 @@ const DashboardLayout = ({
     }
   };
 
+  // Infer notification category from message text (fallback for notifications without notifCategory)
+  const inferCategoryFromMessage = (message) => {
+    if (!message) return "general";
+    const msg = message.toLowerCase();
+    if (
+      msg.includes("dispute") &&
+      (msg.includes("resolved") || msg.includes("settlement"))
+    )
+      return "dispute_resolved";
+    if (msg.includes("dispute") && msg.includes("defense"))
+      return "dispute_defense";
+    if (msg.includes("dispute")) return "dispute_created";
+    if (msg.includes("withdrawal") && msg.includes("approved"))
+      return "withdrawal_approved";
+    if (msg.includes("withdrawal") && msg.includes("rejected"))
+      return "withdrawal_rejected";
+    if (msg.includes("withdrawal") && msg.includes("processed"))
+      return "withdrawal_processed";
+    if (msg.includes("withdrawal")) return "withdrawal_request";
+    if (msg.includes("payment") && msg.includes("approved"))
+      return "payment_approved";
+    if (msg.includes("payment") && msg.includes("rejected"))
+      return "payment_rejected";
+    if (msg.includes("payment") && msg.includes("released"))
+      return "payment_released";
+    if (
+      msg.includes("payment") &&
+      (msg.includes("verification") ||
+        msg.includes("uploaded") ||
+        msg.includes("screenshot"))
+    )
+      return "payment_verification";
+    if (msg.includes("message") || msg.includes("sent you")) return "message";
+    if (msg.includes("booking") && msg.includes("accepted"))
+      return "booking_accepted";
+    if (msg.includes("booking") && msg.includes("rejected"))
+      return "booking_rejected";
+    if (
+      msg.includes("booking") ||
+      msg.includes("new job") ||
+      msg.includes("new request")
+    )
+      return "booking_request";
+    if (msg.includes("milestone") && msg.includes("completed"))
+      return "milestone_completion";
+    if (msg.includes("completed") || msg.includes("auto-complete"))
+      return "auto_complete";
+    if (msg.includes("refund")) return "refund";
+    return "general";
+  };
+
+  // Map notifCategory to admin tab name
+  const getAdminTabForCategory = (category) => {
+    switch (category) {
+      case "payment_verification":
+      case "payment_approved":
+      case "payment_rejected":
+        return "payments";
+      case "withdrawal_request":
+      case "withdrawal_processed":
+      case "withdrawal_approved":
+      case "withdrawal_rejected":
+        return "withdrawals";
+      case "dispute_created":
+      case "dispute_defense":
+      case "dispute_resolved":
+        return "disputes";
+      case "booking_request":
+      case "booking_accepted":
+      case "booking_rejected":
+      case "job_completion":
+      case "milestone_completion":
+      case "auto_complete":
+        return "bookings";
+      default:
+        return "payments";
+    }
+  };
+
+  // Mark notification as read and navigate to the relevant section
+  const handleNotificationClick = async (notification) => {
+    try {
+      // Mark as read via API
+      if (!notification.isRead) {
+        await api.put(`/dashboard/notifications/${notification._id}/read`);
+        setNotifications(
+          notifications.map((n) =>
+            n._id === notification._id ? { ...n, isRead: true } : n,
+          ),
+        );
+      }
+    } catch (err) {
+      console.error("Failed to mark notification as read:", err);
+    }
+
+    // Close notification panel
+    setShowNotifPanel(false);
+
+    // Determine category — use stored value, or infer from message text
+    const category =
+      notification.notifCategory && notification.notifCategory !== "general"
+        ? notification.notifCategory
+        : inferCategoryFromMessage(notification.message);
+    const bookingId = notification.relatedBooking || notification.relatedId;
+    const role = user?.role;
+
+    // Build navigation state
+    const navState = {
+      fromNotification: true,
+      notifCategory: category,
+      bookingId: bookingId,
+      notificationId: notification._id,
+      timestamp: Date.now(),
+    };
+
+    // Admin-specific routing — admin uses tab views inside AdminDashboard
+    if (role === "admin") {
+      const targetTab = getAdminTabForCategory(category);
+
+      // Directly switch the admin tab (works immediately, no navigation needed)
+      if (onAdminViewChange) onAdminViewChange(targetTab);
+
+      // Also update location.state so AdminDashboard can scroll to the correct card
+      navigate("/dashboard", {
+        state: { ...navState, adminView: targetTab },
+        replace: true,
+      });
+      return;
+    }
+
+    // --- Non-admin routing (user / contractor) ---
+    if (category === "message") {
+      navigate("/dashboard/messages", { state: navState });
+      return;
+    }
+
+    if (
+      category === "dispute_created" ||
+      category === "dispute_defense" ||
+      category === "dispute_resolved"
+    ) {
+      navigate("/dashboard/disputes", { state: navState });
+      return;
+    }
+
+    if (
+      category === "withdrawal_approved" ||
+      category === "withdrawal_rejected" ||
+      category === "payment_released"
+    ) {
+      navigate("/dashboard/earnings", { state: navState });
+      return;
+    }
+
+    // Default: navigate to dashboard with booking highlight
+    navigate("/dashboard", { state: navState });
+  };
+
   // Calculate unread count
   const unreadCount = notifications.filter((n) => !n.isRead).length;
+  const isHeavyDutyContractor =
+    user?.role === "contractor" &&
+    user?.skill?.toLowerCase?.().includes("heavy duty");
 
   const menus = {
     user: [
@@ -82,6 +279,16 @@ const DashboardLayout = ({
         name: "My Bookings",
         path: "/dashboard",
         icon: <Briefcase size={20} />,
+      },
+      {
+        name: "Wallet & History",
+        path: "/dashboard/earnings",
+        icon: <DollarSign size={20} />,
+      },
+      {
+        name: "Messages",
+        path: "/dashboard/messages",
+        icon: <MessageCircle size={20} />,
       },
       { name: "Profile Settings", path: "/profile", icon: <User size={20} /> },
       {
@@ -96,6 +303,15 @@ const DashboardLayout = ({
         path: "/dashboard",
         icon: <LayoutDashboard size={20} />,
       },
+      ...(isHeavyDutyContractor
+        ? [
+            {
+              name: "Messages",
+              path: "/dashboard/messages",
+              icon: <MessageCircle size={20} />,
+            },
+          ]
+        : []),
       {
         name: "Earnings",
         path: "/dashboard/earnings",
@@ -119,12 +335,16 @@ const DashboardLayout = ({
       <aside
         className={`${
           isSidebarOpen ? "w-64" : "w-20"
-        } bg-neutral text-neutral-content transition-all duration-300 flex flex-col shadow-2xl z-20`}
+        } bg-neutral text-neutral-content transition-all duration-300 flex flex-col shadow-2xl z-20 anim-slide-left`}
       >
         <div className="p-4 flex items-center justify-between border-b border-neutral-focus">
-          {isSidebarOpen && (
-            <span className="font-bold text-xl tracking-wider">BuildLink</span>
-          )}
+          <BrandLogo
+            showText={isSidebarOpen}
+            iconSize={20}
+            textSize="text-xl"
+            iconClassName="text-primary"
+            textClassName="text-neutral-content"
+          />
           <button
             onClick={() => setSidebarOpen(!isSidebarOpen)}
             className="btn btn-ghost btn-sm btn-circle"
@@ -163,7 +383,7 @@ const DashboardLayout = ({
                     {item.icon}
                     {isSidebarOpen && <span>{item.label}</span>}
                   </div>
-                  {isSidebarOpen && (
+                  {isSidebarOpen && item.showBadge !== false && (
                     <span
                       className={`badge badge-sm font-bold ${
                         adminView === item.id
@@ -191,17 +411,35 @@ const DashboardLayout = ({
                   : "hover:bg-neutral-focus"
               }`}
             >
-              {item.icon}
-              {isSidebarOpen && <span>{item.name}</span>}
+              <div className="relative">
+                {item.icon}
+                {item.path === "/dashboard/messages" &&
+                  unreadMessagesCount > 0 && (
+                    <span className="absolute -top-2 -right-2 badge badge-error badge-xs">
+                      {unreadMessagesCount > 99 ? "99+" : unreadMessagesCount}
+                    </span>
+                  )}
+              </div>
+              {isSidebarOpen && (
+                <div className="flex items-center gap-2">
+                  <span>{item.name}</span>
+                  {item.path === "/dashboard/messages" &&
+                    unreadMessagesCount > 0 && (
+                      <span className="badge badge-error badge-xs">
+                        {unreadMessagesCount > 99 ? "99+" : unreadMessagesCount}
+                      </span>
+                    )}
+                </div>
+              )}
             </Link>
           ))}
         </nav>
 
         <div className="p-4 border-t border-neutral-focus">
           <button
-            onClick={() => {
-              logout();
-              navigate("/login");
+            onClick={async () => {
+              await logout();
+              navigate("/login", { replace: true });
             }}
             className="flex items-center gap-4 text-error hover:text-red-400 transition-colors w-full p-2"
           >
@@ -214,7 +452,7 @@ const DashboardLayout = ({
       {/* MAIN CONTENT */}
       <main className="flex-1 flex flex-col h-full overflow-hidden relative">
         {/* Top Navbar */}
-        <header className="h-16 bg-base-100 shadow-sm flex justify-between items-center px-6 z-10 shrink-0">
+        <header className="h-16 bg-base-100 shadow-sm flex justify-between items-center px-6 z-10 shrink-0 anim-fade-down anim-delay-100">
           <h2 className="text-xl font-bold opacity-70 capitalize">
             {user?.role} Dashboard
           </h2>
@@ -242,7 +480,10 @@ const DashboardLayout = ({
             </button>
 
             {showNotifPanel && (
-              <div className="absolute right-0 mt-2 w-80 bg-base-100 shadow-2xl rounded-xl border border-base-200 overflow-hidden z-50">
+              <div
+                ref={notifPanelRef}
+                className="absolute right-0 mt-2 w-80 bg-base-100 shadow-2xl rounded-xl border border-base-200 overflow-hidden z-50"
+              >
                 <div className="p-3 bg-base-200 font-bold border-b flex justify-between items-center">
                   <span>Notifications</span>
                   {unreadCount > 0 && (
@@ -260,7 +501,8 @@ const DashboardLayout = ({
                     notifications.map((n) => (
                       <div
                         key={n._id}
-                        className={`p-3 border-b border-base-200 hover:bg-base-200/50 transition-colors flex gap-3 justify-between items-start group rounded-lg ${
+                        onClick={() => handleNotificationClick(n)}
+                        className={`p-3 border-b border-base-200 hover:bg-base-200/50 transition-colors flex gap-3 justify-between items-start group rounded-lg cursor-pointer ${
                           !n.isRead ? "bg-primary/5" : ""
                         }`}
                       >
@@ -278,7 +520,10 @@ const DashboardLayout = ({
                           </div>
                         </div>
                         <button
-                          onClick={() => deleteNotification(n._id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteNotification(n._id);
+                          }}
                           className="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100 transition-opacity text-error"
                           title="Remove notification"
                         >
@@ -294,7 +539,9 @@ const DashboardLayout = ({
         </header>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-6 bg-base-200">{children}</div>
+        <div className="flex-1 overflow-y-auto p-6 bg-base-200 anim-fade-up anim-delay-200">
+          {children}
+        </div>
       </main>
     </div>
   );

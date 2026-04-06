@@ -5,6 +5,7 @@ const {
     getWithdrawalHistory,
     getPendingWithdrawals,
     processWithdrawal,
+    getAdminWithdrawalHistory,
 } = require("../controllers/walletController");
 
 const router = express.Router();
@@ -15,6 +16,7 @@ router.get("/history", protect, getWithdrawalHistory);
 
 // Admin Routes
 router.get("/admin/requests", protect, adminOnly, getPendingWithdrawals);
+router.get("/admin/history", protect, adminOnly, getAdminWithdrawalHistory);
 router.put("/admin/:id", protect, adminOnly, processWithdrawal);
 
 module.exports = router;
