@@ -412,10 +412,12 @@ const loginUser = async (req, res) => {
 
 // @desc    Logout user
 const logoutUser = (req, res) => {
+  const isProduction = process.env.NODE_ENV === "production";
+
   res.cookie("jwt", "", {
     httpOnly: true,
-    secure: process.env.NODE_ENV !== "development",
-    sameSite: "strict",
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "strict",
     path: "/",
     expires: new Date(0),
     maxAge: 0,
