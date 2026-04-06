@@ -51,9 +51,20 @@ connectDB().catch((error) => {
 
 const app = express();
 
+// Disable ETag generation to prevent 304 responses with stale dashboard data.
+app.set("etag", false);
+
 // --- MIDDLEWARE ---
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
+
+// Ensure API responses are always fresh for authenticated user-specific data.
+app.use("/api", (req, res, next) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+  next();
+});
 
 app.use(cookieParser());
 const normalizeOrigin = (url) => url.replace(/\/+$/, "").toLowerCase();
