@@ -8,12 +8,21 @@ const protect = async (req, res, next) => {
   // 1. Check for token in Cookies (Best Practice)
   token = req.cookies.jwt;
 
+  // 2. Fallback to Authorization header for browsers that block third-party cookies.
+  if (
+    !token &&
+    req.headers.authorization &&
+    req.headers.authorization.startsWith("Bearer ")
+  ) {
+    token = req.headers.authorization.split(" ")[1];
+  }
+
   if (token) {
     try {
-      // 2. Verify Token
+      // 3. Verify Token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      // 3. Get User from Token (check both User and Contractor models)
+      // 4. Get User from Token (check both User and Contractor models)
       req.user = await User.findById(decoded.userId).select("-password");
 
       // If not found in User, check Contractor model

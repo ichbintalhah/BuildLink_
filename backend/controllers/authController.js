@@ -215,7 +215,7 @@ const registerUser = async (req, res) => {
           console.error("Verification email failed:", err.message);
         });
 
-        generateToken(res, contractor._id);
+        const token = generateToken(res, contractor._id);
         res.status(201).json({
           _id: contractor._id,
           fullName: contractor.fullName,
@@ -229,6 +229,7 @@ const registerUser = async (req, res) => {
           isVerified: contractor.isVerified,
           identityVerified: contractor.identityVerified,
           profilePicture: contractor.profilePicture,
+          token,
           contractorDetails: {
             paymentMethod: contractor.paymentMethod,
             paymentAccount: contractor.paymentAccount,
@@ -297,7 +298,7 @@ const registerUser = async (req, res) => {
         console.error("Verification email failed:", err.message);
       });
 
-      generateToken(res, user._id);
+      const token = generateToken(res, user._id);
       res.status(201).json({
         _id: user._id,
         fullName: user.fullName,
@@ -311,6 +312,7 @@ const registerUser = async (req, res) => {
         paymentAccountValue: user.paymentAccountValue,
         isVerified: user.isVerified,
         profilePicture: user.profilePicture,
+        token,
       });
     } else {
       res.status(400).json({ message: "Invalid user data" });
@@ -354,7 +356,7 @@ const loginUser = async (req, res) => {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
-    generateToken(res, user._id);
+    const token = generateToken(res, user._id);
 
     // Return appropriate data based on user type
     if (isContractor) {
@@ -376,6 +378,7 @@ const loginUser = async (req, res) => {
         totalReviews: user.totalReviews,
         isVerified: user.isVerified,
         profilePicture: user.profilePicture,
+        token,
         contractorDetails: {
           paymentMethod: user.paymentMethod,
           paymentAccount: user.paymentAccount,
@@ -402,6 +405,7 @@ const loginUser = async (req, res) => {
         paymentAccountValue: user.paymentAccountValue,
         isVerified: user.isVerified,
         profilePicture: user.profilePicture,
+        token,
       });
     }
   } catch (error) {

@@ -11,6 +11,25 @@ const api = axios.create({
   },
 });
 
+// Request interceptor: include Bearer token as a fallback when cookie auth
+// is blocked by browser third-party cookie policies.
+api.interceptors.request.use((config) => {
+  try {
+    const rawUser = localStorage.getItem("user");
+    if (rawUser) {
+      const parsedUser = JSON.parse(rawUser);
+      if (parsedUser?.token) {
+        config.headers = config.headers || {};
+        config.headers.Authorization = `Bearer ${parsedUser.token}`;
+      }
+    }
+  } catch (error) {
+    // Ignore malformed localStorage and proceed without Authorization header.
+  }
+
+  return config;
+});
+
 // Response interceptor: on 401 Unauthorized, clear stale client-side auth data
 // so the app doesn't keep rendering protected content with an invalid session.
 api.interceptors.response.use(
