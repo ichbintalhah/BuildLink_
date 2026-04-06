@@ -37,7 +37,23 @@ export const AuthProvider = ({ children }) => {
       });
       return;
     }
-    setUser(newUser);
+
+    setUser((prevUser) => {
+      if (!newUser) return null;
+
+      // Preserve token when profile refresh endpoints return user payloads
+      // without auth fields.
+      if (
+        typeof newUser === "object" &&
+        !Array.isArray(newUser) &&
+        !newUser.token &&
+        prevUser?.token
+      ) {
+        return { ...newUser, token: prevUser.token };
+      }
+
+      return newUser;
+    });
   }, []);
 
   // Expose the current session version so components can capture it at mount time
