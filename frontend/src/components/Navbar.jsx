@@ -736,7 +736,7 @@ const Navbar = () => {
               {showNotifPanel && (
                 <div
                   ref={notifPanelRef}
-                  className="absolute right-0 mt-2 w-80 bg-base-100 shadow-2xl rounded-xl border border-base-200 overflow-hidden z-50 animate-in fade-in slide-in-from-top-4 zoom-in-95 duration-300"
+                  className="absolute right-2 md:right-0 mt-2 w-72 md:w-80 bg-base-100 shadow-2xl rounded-xl border border-base-200 overflow-hidden z-50 animate-in fade-in slide-in-from-top-4 zoom-in-95 duration-300"
                   style={{ transformOrigin: "top right" }}
                 >
                   <div className="p-3 bg-gradient-to-r from-primary/10 to-transparent font-bold border-b flex justify-between items-center animate-in slide-in-from-top-2 duration-200">
@@ -753,7 +753,7 @@ const Navbar = () => {
                       </span>
                     )}
                   </div>
-                  <div className="max-h-80 overflow-y-auto p-2">
+                  <div className="max-h-64 md:max-h-80 overflow-y-auto p-2">
                     {notifications.length === 0 ? (
                       <p className="text-center opacity-50 text-sm py-6 animate-in fade-in duration-300">
                         No notifications
