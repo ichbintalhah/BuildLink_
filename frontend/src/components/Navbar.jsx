@@ -35,8 +35,10 @@ const Navbar = () => {
 
   const [notifications, setNotifications] = useState([]);
   const [showNotifPanel, setShowNotifPanel] = useState(false);
+  const [notifPanelStyle, setNotifPanelStyle] = useState({});
   const [scrolled, setScrolled] = useState(false);
   const notifPanelRef = useRef(null);
+  const notifButtonRef = useRef(null);
   const servicesRef = useRef(null);
   const mobileMenuRef = useRef(null);
 
@@ -91,6 +93,40 @@ const Navbar = () => {
       return () =>
         document.removeEventListener("mousedown", handleClickOutside);
     }
+  }, [showNotifPanel]);
+
+  useEffect(() => {
+    if (!showNotifPanel) return;
+
+    const updateNotifPanelPosition = () => {
+      if (!notifButtonRef.current) return;
+
+      const minMargin = 8;
+      const buttonRect = notifButtonRef.current.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const panelWidth = Math.min(360, viewportWidth - minMargin * 2);
+
+      let left = buttonRect.right - panelWidth;
+      left = Math.max(minMargin, left);
+      left = Math.min(left, viewportWidth - panelWidth - minMargin);
+
+      setNotifPanelStyle({
+        left: `${left}px`,
+        top: `${buttonRect.bottom + 10}px`,
+        width: `${panelWidth}px`,
+        maxHeight: `${Math.min(420, Math.round(viewportHeight * 0.68))}px`,
+      });
+    };
+
+    updateNotifPanelPosition();
+    window.addEventListener("resize", updateNotifPanelPosition);
+    window.addEventListener("scroll", updateNotifPanelPosition, true);
+
+    return () => {
+      window.removeEventListener("resize", updateNotifPanelPosition);
+      window.removeEventListener("scroll", updateNotifPanelPosition, true);
+    };
   }, [showNotifPanel]);
 
   const getRelativeTime = (timestamp) => {
@@ -713,6 +749,7 @@ const Navbar = () => {
             {/* Bell Icon */}
             <div className="relative">
               <button
+                ref={notifButtonRef}
                 onClick={() => setShowNotifPanel(!showNotifPanel)}
                 className="btn btn-ghost btn-circle relative hover:bg-base-200 hover:scale-110 transition-all duration-200 focus:outline-2 focus:outline-offset-2 focus:outline-primary hover:shadow-lg"
               >
@@ -736,10 +773,10 @@ const Navbar = () => {
               {showNotifPanel && (
                 <div
                   ref={notifPanelRef}
-                  className="absolute right-2 md:right-0 mt-2 w-72 md:w-80 bg-base-100 shadow-2xl rounded-xl border border-base-200 overflow-hidden z-50 animate-in fade-in slide-in-from-top-4 zoom-in-95 duration-300"
-                  style={{ transformOrigin: "top right" }}
+                  className="fixed bg-base-100 shadow-2xl rounded-2xl border border-base-200 overflow-hidden z-[70] animate-in fade-in slide-in-from-top-4 zoom-in-95 duration-300"
+                  style={{ ...notifPanelStyle, transformOrigin: "top right" }}
                 >
-                  <div className="p-3 bg-gradient-to-r from-primary/10 to-transparent font-bold border-b flex justify-between items-center animate-in slide-in-from-top-2 duration-200">
+                  <div className="px-4 py-3 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent font-semibold border-b border-base-200 flex justify-between items-center animate-in slide-in-from-top-2 duration-200">
                     <span className="flex items-center gap-2">
                       <Bell size={18} className="text-primary" />
                       Notifications
@@ -753,9 +790,12 @@ const Navbar = () => {
                       </span>
                     )}
                   </div>
-                  <div className="max-h-64 md:max-h-80 overflow-y-auto p-2">
+                  <div
+                    className="overflow-y-auto overscroll-contain scroll-smooth p-2 sm:p-3"
+                    style={{ maxHeight: "min(320px, calc(68vh - 56px))" }}
+                  >
                     {notifications.length === 0 ? (
-                      <p className="text-center opacity-50 text-sm py-6 animate-in fade-in duration-300">
+                      <p className="text-center opacity-60 text-sm py-7 animate-in fade-in duration-300">
                         No notifications
                       </p>
                     ) : (
@@ -763,18 +803,20 @@ const Navbar = () => {
                         <div
                           key={n._id}
                           onClick={() => handleNotificationClick(n)}
-                          className="p-3 border-b hover:bg-gradient-to-r hover:from-primary/5 hover:to-transparent flex justify-between items-start group rounded-md transition-all cursor-pointer hover:scale-[1.02] hover:shadow-md animate-in fade-in slide-in-from-right-2"
+                          className="px-3 py-3 border-b border-base-200/80 last:border-b-0 hover:bg-gradient-to-r hover:from-primary/5 hover:to-transparent flex justify-between items-start gap-2 group rounded-lg transition-all cursor-pointer hover:shadow-sm animate-in fade-in slide-in-from-right-2"
                           style={{ animationDelay: `${index * 50}ms` }}
                         >
-                          <div className="text-sm flex-1">
+                          <div className="text-sm flex-1 min-w-0">
                             <p
                               className={
-                                !n.isRead ? "font-bold text-primary" : ""
+                                !n.isRead
+                                  ? "font-semibold text-primary leading-relaxed whitespace-normal break-words"
+                                  : "leading-relaxed whitespace-normal break-words text-base-content/90"
                               }
                             >
                               {n.message}
                             </p>
-                            <span className="text-xs opacity-50 flex gap-1 mt-1">
+                            <span className="text-xs opacity-60 inline-flex items-center gap-1 mt-2">
                               <Clock size={10} /> {getRelativeTime(n.timestamp)}
                             </span>
                           </div>
@@ -783,7 +825,8 @@ const Navbar = () => {
                               e.stopPropagation();
                               deleteNotification(n._id);
                             }}
-                            className="btn btn-ghost btn-xs text-error opacity-0 group-hover:opacity-100 ml-2 hover:bg-error/10 transition-all duration-200 hover:scale-110 hover:rotate-12"
+                            className="btn btn-ghost btn-xs text-error opacity-100 sm:opacity-0 sm:group-hover:opacity-100 ml-1 hover:bg-error/10 transition-all duration-200 hover:scale-105"
+                            title="Delete notification"
                           >
                             <Trash2 size={14} />
                           </button>
