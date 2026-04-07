@@ -1,4 +1,4 @@
-import { useContext, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import useScrollReveal from "../utils/useScrollReveal";
@@ -51,6 +51,22 @@ const Home = () => {
   const { user } = useContext(AuthContext);
   const [showConstructionModal, setShowConstructionModal] = useState(false);
   const scrollRevealRef = useScrollReveal();
+
+  useEffect(() => {
+    if (!showConstructionModal) return;
+
+    const originalOverflow = document.body.style.overflow;
+    const originalTouchAction = document.body.style.touchAction;
+
+    // Prevent background page scroll while modal is open (especially on mobile).
+    document.body.style.overflow = "hidden";
+    document.body.style.touchAction = "none";
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      document.body.style.touchAction = originalTouchAction;
+    };
+  }, [showConstructionModal]);
 
   // Determine contractor type
   const isHeavyDuty =
@@ -2201,11 +2217,11 @@ const Home = () => {
       {/* Construction Modal */}
       {showConstructionModal && (
         <div
-          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/60 z-50 flex items-start md:items-center justify-center p-4 overflow-y-auto overscroll-contain"
           onClick={() => setShowConstructionModal(false)}
         >
           <div
-            className="bg-base-100 rounded-2xl max-w-4xl w-full p-8 relative animate-fade-in"
+            className="bg-base-100 rounded-2xl max-w-4xl w-full p-8 relative animate-fade-in my-4"
             onClick={(e) => e.stopPropagation()}
           >
             <button
@@ -2219,10 +2235,10 @@ const Home = () => {
               Choose Construction Type
             </h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               {/* General Construction Card */}
-              <div className="card bg-base-200 shadow-xl hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 overflow-hidden group">
-                <figure className="h-56 relative">
+              <div className="card w-[72%] md:w-4/5 mx-auto bg-base-200 shadow-xl hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 overflow-hidden group">
+                <figure className="h-28 md:h-56 relative">
                   <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-colors"></div>
                   <img
                     src="https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&q=80&w=500"
@@ -2230,16 +2246,18 @@ const Home = () => {
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                   />
                 </figure>
-                <div className="card-body">
-                  <h3 className="card-title text-xl">General Construction</h3>
-                  <p className="text-sm opacity-70">
+                <div className="card-body p-3 md:p-6">
+                  <h3 className="card-title text-base md:text-xl">
+                    General Construction
+                  </h3>
+                  <p className="text-xs md:text-sm opacity-70">
                     Find verified plumbers, carpenters, electricians, and other
                     skilled professionals for your project.
                   </p>
-                  <div className="card-actions justify-end mt-4">
+                  <div className="card-actions justify-end mt-2 md:mt-4">
                     <Link
                       to="/services/construction"
-                      className="btn btn-primary gap-2"
+                      className="btn btn-sm md:btn-md btn-primary gap-2"
                       onClick={() => setShowConstructionModal(false)}
                     >
                       Explore <ArrowRight size={16} />
@@ -2249,8 +2267,8 @@ const Home = () => {
               </div>
 
               {/* Heavy Duty Construction Card */}
-              <div className="card bg-base-200 shadow-xl hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 overflow-hidden group">
-                <figure className="h-56 relative">
+              <div className="card w-[72%] md:w-4/5 mx-auto bg-base-200 shadow-xl hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 overflow-hidden group">
+                <figure className="h-28 md:h-56 relative">
                   <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-colors"></div>
                   <img
                     src="https://images.unsplash.com/photo-1541888946425-d81bb19240f5?auto=format&fit=crop&q=80&w=500"
@@ -2258,18 +2276,18 @@ const Home = () => {
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                   />
                 </figure>
-                <div className="card-body">
-                  <h3 className="card-title text-xl">
+                <div className="card-body p-3 md:p-6">
+                  <h3 className="card-title text-base md:text-xl">
                     Heavy Duty Construction
                   </h3>
-                  <p className="text-sm opacity-70">
+                  <p className="text-xs md:text-sm opacity-70">
                     Large-scale construction projects including plazas,
                     commercial buildings, and major structural work.
                   </p>
-                  <div className="card-actions justify-end mt-4">
+                  <div className="card-actions justify-end mt-2 md:mt-4">
                     <Link
                       to="/services/heavy-duty-construction"
-                      className="btn btn-primary gap-2"
+                      className="btn btn-sm md:btn-md btn-primary gap-2"
                       onClick={() => setShowConstructionModal(false)}
                     >
                       Explore <ArrowRight size={16} />

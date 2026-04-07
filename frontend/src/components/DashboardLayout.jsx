@@ -29,6 +29,7 @@ const DashboardLayout = ({
   const navigate = useNavigate();
   const location = useLocation();
   const [isSidebarOpen, setSidebarOpen] = useState(true);
+  const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [showNotifPanel, setShowNotifPanel] = useState(false);
   const notifPanelRef = useRef(null);
@@ -86,6 +87,23 @@ const DashboardLayout = ({
         document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [showNotifPanel]);
+
+  // Close mobile drawer on route changes.
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
+
+  // Prevent page scroll while mobile drawer is open.
+  useEffect(() => {
+    if (!isMobileMenuOpen) return;
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isMobileMenuOpen]);
 
   const getRelativeTime = (timestamp) => {
     const now = Date.now();
@@ -335,7 +353,7 @@ const DashboardLayout = ({
       <aside
         className={`${
           isSidebarOpen ? "w-64" : "w-20"
-        } bg-neutral text-neutral-content transition-all duration-300 flex flex-col shadow-2xl z-20 anim-slide-left`}
+        } hidden md:flex bg-neutral text-neutral-content transition-all duration-300 flex-col shadow-2xl z-20 anim-slide-left`}
       >
         <div className="p-4 flex items-center justify-between border-b border-neutral-focus">
           <BrandLogo
@@ -449,13 +467,150 @@ const DashboardLayout = ({
         </div>
       </aside>
 
+      {/* MOBILE DRAWER */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 z-40 md:hidden">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setMobileMenuOpen(false)}
+          ></div>
+
+          <aside className="absolute left-0 top-0 h-full w-72 max-w-[85vw] bg-neutral text-neutral-content shadow-2xl flex flex-col">
+            <div className="p-4 flex items-center justify-between border-b border-neutral-focus">
+              <BrandLogo
+                showText={true}
+                iconSize={20}
+                textSize="text-xl"
+                iconClassName="text-primary"
+                textClassName="text-neutral-content"
+              />
+              <button
+                onClick={() => setMobileMenuOpen(false)}
+                className="btn btn-ghost btn-sm btn-circle"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+              <Link
+                to="/"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-4 p-3 rounded-lg hover:bg-neutral-focus transition-all text-neutral-content/70 hover:text-white"
+              >
+                <Home size={20} />
+                <span>Back to Home</span>
+              </Link>
+
+              <div className="divider my-2 border-neutral-focus"></div>
+
+              {adminNavItems && adminNavItems.length > 0 && (
+                <>
+                  {adminNavItems.map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        onAdminViewChange && onAdminViewChange(item.id);
+                        setMobileMenuOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-4 p-3 rounded-lg transition-all justify-between ${
+                        adminView === item.id
+                          ? "bg-primary text-primary-content shadow-md"
+                          : "hover:bg-neutral-focus text-neutral-content/70 hover:text-white"
+                      }`}
+                    >
+                      <div className="flex items-center gap-4">
+                        {item.icon}
+                        <span>{item.label}</span>
+                      </div>
+                      {item.showBadge !== false && (
+                        <span
+                          className={`badge badge-sm font-bold ${
+                            adminView === item.id
+                              ? "badge-secondary"
+                              : "badge-primary"
+                          }`}
+                        >
+                          {item.count || 0}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                  <div className="divider my-2 border-neutral-focus"></div>
+                </>
+              )}
+
+              {currentMenu.map((item) => (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center gap-4 p-3 rounded-lg transition-all ${
+                    location.pathname === item.path
+                      ? "bg-primary text-primary-content shadow-md"
+                      : "hover:bg-neutral-focus"
+                  }`}
+                >
+                  <div className="relative">
+                    {item.icon}
+                    {item.path === "/dashboard/messages" &&
+                      unreadMessagesCount > 0 && (
+                        <span className="absolute -top-2 -right-2 badge badge-error badge-xs">
+                          {unreadMessagesCount > 99
+                            ? "99+"
+                            : unreadMessagesCount}
+                        </span>
+                      )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span>{item.name}</span>
+                    {item.path === "/dashboard/messages" &&
+                      unreadMessagesCount > 0 && (
+                        <span className="badge badge-error badge-xs">
+                          {unreadMessagesCount > 99
+                            ? "99+"
+                            : unreadMessagesCount}
+                        </span>
+                      )}
+                  </div>
+                </Link>
+              ))}
+            </nav>
+
+            <div className="p-4 border-t border-neutral-focus">
+              <button
+                onClick={async () => {
+                  setMobileMenuOpen(false);
+                  await logout();
+                  navigate("/login", { replace: true });
+                }}
+                className="flex items-center gap-4 text-error hover:text-red-400 transition-colors w-full p-2"
+              >
+                <LogOut size={20} />
+                <span>Logout</span>
+              </button>
+            </div>
+          </aside>
+        </div>
+      )}
+
       {/* MAIN CONTENT */}
       <main className="flex-1 flex flex-col h-full overflow-hidden relative">
         {/* Top Navbar */}
         <header className="h-16 bg-base-100 shadow-sm flex justify-between items-center px-6 z-10 shrink-0 anim-fade-down anim-delay-100">
-          <h2 className="text-xl font-bold opacity-70 capitalize">
-            {user?.role} Dashboard
-          </h2>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setMobileMenuOpen(true)}
+              className="btn btn-ghost btn-sm btn-circle md:hidden"
+              aria-label="Open menu"
+            >
+              <Menu size={20} />
+            </button>
+
+            <h2 className="text-xl font-bold opacity-70 capitalize">
+              {user?.role} Dashboard
+            </h2>
+          </div>
 
           <div className="relative">
             <button
@@ -482,7 +637,7 @@ const DashboardLayout = ({
             {showNotifPanel && (
               <div
                 ref={notifPanelRef}
-                className="absolute right-0 mt-2 w-80 bg-base-100 shadow-2xl rounded-xl border border-base-200 overflow-hidden z-50"
+                className="absolute right-0 mt-2 w-64 bg-base-100 shadow-2xl rounded-xl border border-base-200 overflow-hidden z-50"
               >
                 <div className="p-3 bg-base-200 font-bold border-b flex justify-between items-center">
                   <span>Notifications</span>
@@ -492,7 +647,7 @@ const DashboardLayout = ({
                     </span>
                   )}
                 </div>
-                <div className="max-h-64 overflow-y-auto p-2">
+                <div className="max-h-56 overflow-y-auto p-2">
                   {notifications.length === 0 ? (
                     <p className="text-center opacity-50 text-sm py-4">
                       No notifications
