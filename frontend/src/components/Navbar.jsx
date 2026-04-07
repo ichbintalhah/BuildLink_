@@ -1,5 +1,6 @@
 import { useContext, useEffect, useState, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import { createPortal } from "react-dom";
 import { AuthContext } from "../context/AuthContext";
 import api from "../services/api";
 import {
@@ -105,9 +106,14 @@ const Navbar = () => {
       const buttonRect = notifButtonRef.current.getBoundingClientRect();
       const viewportWidth = window.innerWidth;
       const viewportHeight = window.innerHeight;
-      const panelWidth = Math.min(360, viewportWidth - minMargin * 2);
+      const isMobile = viewportWidth < 640;
+      const panelWidth = isMobile
+        ? Math.min(620, Math.round(viewportWidth * 0.95))
+        : Math.min(360, viewportWidth - minMargin * 2);
 
-      let left = buttonRect.right - panelWidth;
+      let left = isMobile
+        ? (viewportWidth - panelWidth) / 2
+        : buttonRect.right - panelWidth;
       left = Math.max(minMargin, left);
       left = Math.min(left, viewportWidth - panelWidth - minMargin);
 
@@ -770,72 +776,87 @@ const Navbar = () => {
                 </div>
               </button>
 
-              {showNotifPanel && (
-                <div
-                  ref={notifPanelRef}
-                  className="fixed bg-base-100 shadow-2xl rounded-2xl border border-base-200 overflow-hidden z-[70] animate-in fade-in slide-in-from-top-4 zoom-in-95 duration-300"
-                  style={{ ...notifPanelStyle, transformOrigin: "top right" }}
-                >
-                  <div className="px-4 py-3 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent font-semibold border-b border-base-200 flex justify-between items-center animate-in slide-in-from-top-2 duration-200">
-                    <span className="flex items-center gap-2">
-                      <Bell size={18} className="text-primary" />
-                      Notifications
-                    </span>
-                    {notifications.length > 0 && (
-                      <span
-                        className="text-xs badge badge-primary animate-in zoom-in-50 duration-300"
-                        style={{ animationDelay: "100ms" }}
-                      >
-                        {notifications.length}
-                      </span>
-                    )}
-                  </div>
-                  <div
-                    className="overflow-y-auto overscroll-contain scroll-smooth p-2 sm:p-3"
-                    style={{ maxHeight: "min(320px, calc(68vh - 56px))" }}
-                  >
-                    {notifications.length === 0 ? (
-                      <p className="text-center opacity-60 text-sm py-7 animate-in fade-in duration-300">
-                        No notifications
-                      </p>
-                    ) : (
-                      notifications.map((n, index) => (
-                        <div
-                          key={n._id}
-                          onClick={() => handleNotificationClick(n)}
-                          className="px-3 py-3 border-b border-base-200/80 last:border-b-0 hover:bg-gradient-to-r hover:from-primary/5 hover:to-transparent flex justify-between items-start gap-2 group rounded-lg transition-all cursor-pointer hover:shadow-sm animate-in fade-in slide-in-from-right-2"
-                          style={{ animationDelay: `${index * 50}ms` }}
-                        >
-                          <div className="text-sm flex-1 min-w-0">
-                            <p
-                              className={
-                                !n.isRead
-                                  ? "font-semibold text-primary leading-relaxed whitespace-normal break-words"
-                                  : "leading-relaxed whitespace-normal break-words text-base-content/90"
-                              }
-                            >
-                              {n.message}
-                            </p>
-                            <span className="text-xs opacity-60 inline-flex items-center gap-1 mt-2">
-                              <Clock size={10} /> {getRelativeTime(n.timestamp)}
-                            </span>
-                          </div>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteNotification(n._id);
-                            }}
-                            className="btn btn-ghost btn-xs text-error opacity-100 sm:opacity-0 sm:group-hover:opacity-100 ml-1 hover:bg-error/10 transition-all duration-200 hover:scale-105"
-                            title="Delete notification"
+              {showNotifPanel &&
+                createPortal(
+                  <>
+                    <button
+                      type="button"
+                      aria-label="Close notifications"
+                      className="fixed inset-0 bg-base-content/35 backdrop-blur-[1px] z-[170]"
+                      onClick={() => setShowNotifPanel(false)}
+                    />
+
+                    <div
+                      ref={notifPanelRef}
+                      className="fixed bg-base-100 rounded-2xl border border-base-200 overflow-hidden z-[180] shadow-[0_26px_65px_-24px_rgba(0,0,0,0.6)] animate-in fade-in slide-in-from-top-4 zoom-in-95 duration-300"
+                      style={{
+                        ...notifPanelStyle,
+                        transformOrigin: "top right",
+                      }}
+                    >
+                      <div className="px-4 py-3 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent font-semibold border-b border-base-200 flex justify-between items-center animate-in slide-in-from-top-2 duration-200">
+                        <span className="flex items-center gap-2">
+                          <Bell size={18} className="text-primary" />
+                          Notifications
+                        </span>
+                        {notifications.length > 0 && (
+                          <span
+                            className="text-xs badge badge-primary animate-in zoom-in-50 duration-300"
+                            style={{ animationDelay: "100ms" }}
                           >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              )}
+                            {notifications.length}
+                          </span>
+                        )}
+                      </div>
+                      <div
+                        className="overflow-y-auto overscroll-contain scroll-smooth p-2 sm:p-3"
+                        style={{ maxHeight: "min(360px, calc(72vh - 56px))" }}
+                      >
+                        {notifications.length === 0 ? (
+                          <p className="text-center opacity-60 text-sm py-7 animate-in fade-in duration-300">
+                            No notifications
+                          </p>
+                        ) : (
+                          notifications.map((n, index) => (
+                            <div
+                              key={n._id}
+                              onClick={() => handleNotificationClick(n)}
+                              className="px-3 py-3 border-b border-base-200/80 last:border-b-0 hover:bg-gradient-to-r hover:from-primary/5 hover:to-transparent flex justify-between items-start gap-2 group rounded-lg transition-all cursor-pointer hover:shadow-sm animate-in fade-in slide-in-from-right-2"
+                              style={{ animationDelay: `${index * 50}ms` }}
+                            >
+                              <div className="text-sm flex-1 min-w-0">
+                                <p
+                                  className={
+                                    !n.isRead
+                                      ? "font-semibold text-primary leading-relaxed whitespace-normal break-words"
+                                      : "leading-relaxed whitespace-normal break-words text-base-content/90"
+                                  }
+                                >
+                                  {n.message}
+                                </p>
+                                <span className="text-xs opacity-60 inline-flex items-center gap-1 mt-2">
+                                  <Clock size={10} />{" "}
+                                  {getRelativeTime(n.timestamp)}
+                                </span>
+                              </div>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteNotification(n._id);
+                                }}
+                                className="btn btn-ghost btn-xs text-error opacity-100 sm:opacity-0 sm:group-hover:opacity-100 ml-1 hover:bg-error/10 transition-all duration-200 hover:scale-105"
+                                title="Delete notification"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </>,
+                  document.body,
+                )}
             </div>
 
             {/* Profile */}

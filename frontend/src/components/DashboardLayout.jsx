@@ -635,9 +635,18 @@ const DashboardLayout = ({
             </button>
 
             {showNotifPanel && (
+              <button
+                type="button"
+                aria-label="Close notifications"
+                className="fixed inset-0 bg-base-content/30 backdrop-blur-[1px] z-[110] md:hidden"
+                onClick={() => setShowNotifPanel(false)}
+              />
+            )}
+
+            {showNotifPanel && (
               <div
                 ref={notifPanelRef}
-                className="absolute right-0 mt-2 w-64 bg-base-100 shadow-2xl rounded-xl border border-base-200 overflow-hidden z-50"
+                className="fixed left-1/2 top-[calc(4rem+0.75rem)] w-[92vw] max-w-xl -translate-x-1/2 bg-base-100 rounded-xl border border-base-200 overflow-hidden z-[120] shadow-[0_22px_55px_-22px_rgba(0,0,0,0.55)] md:absolute md:right-0 md:left-auto md:top-auto md:mt-2 md:w-[26rem] md:max-w-none md:translate-x-0"
               >
                 <div className="p-3 bg-base-200 font-bold border-b flex justify-between items-center">
                   <span>Notifications</span>
@@ -647,7 +656,7 @@ const DashboardLayout = ({
                     </span>
                   )}
                 </div>
-                <div className="max-h-56 overflow-y-auto p-2">
+                <div className="max-h-[65vh] md:max-h-56 overflow-y-auto p-2">
                   {notifications.length === 0 ? (
                     <p className="text-center opacity-50 text-sm py-4">
                       No notifications
