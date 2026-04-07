@@ -733,6 +733,13 @@ const Navbar = () => {
                 >
                   <Zap size={16} className="fill-current" /> AI Assistant
                 </Link>
+                <Link
+                  to="/contact"
+                  className="block p-3 rounded-lg hover:bg-base-200 transition-colors mt-2"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Contact Us
+                </Link>
               </>
             )}
           </div>
