@@ -27,7 +27,7 @@ const Contact = () => {
           <div className="card-body text-center items-center">
             <Phone size={48} className="text-primary mb-4" />
             <h3 className="card-title text-2xl">Phone</h3>
-            <p className="opacity-70 text-lg">+92 314 4324007</p>
+            <p className="opacity-70 text-lg">+92 301 4862236</p>
             <p className="text-sm opacity-60 mt-2">
               Available Mon-Sat, 9 AM - 6 PM
             </p>
