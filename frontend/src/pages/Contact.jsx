@@ -71,7 +71,7 @@ const Contact = () => {
             disputes, or general questions.
           </p>
           <a
-            href="https://wa.me/923144324007"
+            href="https://wa.me/923014862236"
             target="_blank"
             rel="noopener noreferrer"
             className="btn btn-success btn-lg gap-2 text-white"
