@@ -46,10 +46,12 @@ const PrivacyPolicy = () => {
           <h2 className="text-2xl font-bold mb-4">4. Contact Us</h2>
           <p>
             If you have questions about this policy, please contact us at{" "}
-            <span className="font-bold text-primary">
+            <a
+              className="font-bold text-primary"
+              href="mailto:buildlink.pk@gmail.com"
+            >
               buildlink.pk@gmail.com
-            </span>
-            .
+            </a>
           </p>
         </section>
       </div>
