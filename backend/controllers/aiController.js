@@ -72,77 +72,29 @@ const getAIRecommendations = async (req, res) => {
 // @route   POST /api/ai/estimate
 const estimateConstructionCost = async (req, res) => {
   const { query, marlaSize, materialPrices, projectContext } = req.body;
-  const MAX_RETRIES = 1;
 
   try {
-    // ===== INPUT VALIDATION =====
     if (!query || !marlaSize) {
-      return res.status(400).json({
-        success: false,
-        message: "Query and marlaSize are required",
-      });
+      return res
+        .status(400)
+        .json({ message: "Query and marlaSize are required" });
     }
 
-    // Improved validation: Allow realistic construction queries
-    const constructionKeywords = [
-      "build",
-      "repair",
-      "paint",
-      "tile",
-      "plumb",
-      "electric",
-      "roof",
-      "wall",
-      "door",
-      "window",
-      "floor",
-      "ceiling",
-      "foundation",
-      "brick",
-      "marble",
-      "cement",
-      "renovation",
-      "construction",
-      "cost",
-      "estimate",
-      "labor",
-      "material",
-      "install",
-      "fix",
-      "replace",
-      "finishing",
-      "exterior",
-      "interior",
-    ];
-
-    const rejectKeywords = [
-      "how are you",
-      "hello",
-      "hi there",
-      "general chat",
-      "tell me a joke",
-      "what is the weather",
-      "cook a recipe",
-      "play a game",
-    ];
-
+    // Validate construction-only
+    const nonConstructionKeywords = ["general", "chat", "how are you", "hello"];
     const queryLower = query.toLowerCase();
-    const isRejectKeyword = rejectKeywords.some((keyword) =>
-      queryLower.includes(keyword),
-    );
-    const isConstructionKeyword = constructionKeywords.some((keyword) =>
+    const isGeneralChat = nonConstructionKeywords.some((keyword) =>
       queryLower.includes(keyword),
     );
 
-    if (isRejectKeyword && !isConstructionKeyword) {
+    if (isGeneralChat && !queryLower.includes("construction")) {
       return res.status(400).json({
-        success: false,
         message:
-          "I can only help with construction-related queries. Please ask about building, renovation, repairs, or construction projects.",
+          "I can only help with construction-related queries. Please ask about building, renovation, or construction projects.",
       });
     }
 
-    // ===== SETUP GEMINI MODEL =====
+    // Initialize Gemini
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     // Pakistani market material prices
@@ -161,151 +113,70 @@ const estimateConstructionCost = async (req, res) => {
 
     const prices = materialPrices || defaultPrices;
 
-    // ===== HELPER: Extract JSON safely =====
-    const extractJSON = (text) => {
-      if (!text) return null;
-
-      // Strategy 1: Direct JSON parsing (fastest)
-      try {
-        const startIdx = text.indexOf("{");
-        const endIdx = text.lastIndexOf("}");
-        if (startIdx !== -1 && endIdx !== -1) {
-          const jsonStr = text.substring(startIdx, endIdx + 1);
-          return JSON.parse(jsonStr);
+    const prompt = `
+      You are an expert construction estimator specializing in Pakistani construction industry.
+      
+      Marla Size: ${marlaSize} sq ft
+      User Query: "${query}"
+      ${projectContext ? `Previous Context: "${projectContext}"` : ""}
+      
+      Material Prices (PKR):
+      - Brick: Rs. ${prices.brick} per piece
+      - Cement (50kg bag): Rs. ${prices.cementBag}
+      - Sand: Rs. ${prices.sand} per ton
+      - Steel: Rs. ${prices.steel} per kg
+      - Paint: Rs. ${prices.paint} per liter
+      - Tile: Rs. ${prices.tile} per sq ft
+      - Labor: Rs. ${prices.labor} per sq ft
+      - Marble: Rs. ${prices.marble} per sq ft
+      - Gravel: Rs. ${prices.gravel} per ton
+      - Rebar: Rs. ${prices.rebar} per kg
+      
+      ACCURACY RULES:
+      1. Pakistani Marla has two standards: 225 sq ft (common in Punjab/urban areas) or 272 sq ft (older standard). If the user specifies, use that. Otherwise default to 225 sq ft. Total area = ${marlaSize} × (225 or 272) sq ft — use this in all calculations.
+      2. Only provide construction-related estimates.
+      3. Use ONLY the material prices provided above in the "Default Material Prices" section for cost calculations — do not assume or substitute your own rates. Multiply each material's unit price by the required quantity to get its cost.
+      4. Derive material quantities using standard civil engineering ratios for the given scope area — do not inflate.
+      5. Sum up individual material costs + labor to arrive at the total — the result must be consistent with the provided prices and calculated quantities.
+      6. Calculate timeline by summing realistic phase durations for the specific scope; scale proportionally for small/partial work. --> like in general it take 90 days to build a 5 Marla Double story house with the team of 5 mens. and also show in response that this estimation is based on the team of 5 mens.
+      7. Recheck your estimations on internet and Never over-estimate to "play it safe" — accuracy over padding.
+      
+      Provide response in JSON format:
+      {
+        "analysis": "Detailed explanation of the estimate with breakdown",
+        "estimatedCost": <total cost in PKR as number>,
+        "estimatedDays": <number of days>,
+        "materials": {
+          "material1": "quantity and unit",
+          "material2": "quantity and unit"
+        },
+        "costBreakdown": {
+          "materials": <cost in PKR>,
+          "labor": <cost in PKR>,
+          "contingency": <cost in PKR>
         }
-      } catch (e) {
-        // Continue to next strategy
       }
+      
+      Respond with ONLY the JSON, no markdown formatting.
+    `;
 
-      // Strategy 2: Clean markdown and retry
-      try {
-        const cleaned = text
-          .replace(/```json\s*/g, "")
-          .replace(/```\s*/g, "")
-          .trim();
-        const startIdx = cleaned.indexOf("{");
-        const endIdx = cleaned.lastIndexOf("}");
-        if (startIdx !== -1 && endIdx !== -1) {
-          const jsonStr = cleaned.substring(startIdx, endIdx + 1);
-          return JSON.parse(jsonStr);
-        }
-      } catch (e) {
-        // Continue to next strategy
-      }
+    const result = await model.generateContent(prompt);
+    const responseText = await result.response.text();
 
-      return null;
-    };
+    // Clean up markdown formatting
+    let cleanText = responseText
+      .replace(/```json|```/g, "")
+      .replace(/[\n\r]/g, " ")
+      .trim();
 
-    // ===== HELPER: Generate AI estimate with retry =====
-    const generateEstimate = async (attempt = 0) => {
-      const prompt = `You are an expert construction estimator specializing in Pakistani construction industry.
-
-Marla Size: ${marlaSize} sq ft
-User Query: "${query}"
-${projectContext ? `Previous Context: "${projectContext}"` : ""}
-
-Material Prices (PKR):
-- Brick: Rs. ${prices.brick} per piece
-- Cement (50kg bag): Rs. ${prices.cementBag}
-- Sand: Rs. ${prices.sand} per ton
-- Steel: Rs. ${prices.steel} per kg
-- Paint: Rs. ${prices.paint} per liter
-- Tile: Rs. ${prices.tile} per sq ft
-- Labor: Rs. ${prices.labor} per sq ft
-- Marble: Rs. ${prices.marble} per sq ft
-- Gravel: Rs. ${prices.gravel} per ton
-- Rebar: Rs. ${prices.rebar} per kg
-
-CRITICAL: RESPOND WITH ONLY VALID JSON. NO MARKDOWN. NO EXTRA TEXT.
-
-ACCURACY RULES:
-1. Pakistani Marla has two standards: 225 sq ft (common in Punjab/urban areas) or 272 sq ft (older standard). Use 225 sq ft as default. Total area = ${marlaSize} × 225 sq ft.
-2. Only provide construction-related estimates.
-3. Use ONLY the material prices provided above for all cost calculations.
-4. Derive material quantities using standard civil engineering ratios.
-5. Sum individual material costs + labor for the total.
-6. Calculate timeline by summing realistic phase durations. Note: Typically 90 days to build a 5 Marla double-story house with a team of 5 workers.
-7. Never over-estimate. Accuracy over padding.
-
-RESPOND WITH THIS JSON STRUCTURE ONLY:
-{
-  "analysis": "Detailed explanation of the estimate with complete breakdown",
-  "estimatedCost": <total cost in PKR as a number>,
-  "estimatedDays": <number of days as a number>,
-  "materials": {
-    "material1": "quantity and unit",
-    "material2": "quantity and unit"
-  },
-  "costBreakdown": {
-    "materials": <cost in PKR as number>,
-    "labor": <cost in PKR as number>,
-    "contingency": <cost in PKR as number>
-  }
-}
-
-START WITH { AND END WITH }. NO OTHER TEXT.`;
-
-      try {
-        const result = await model.generateContent(prompt);
-        const responseText = await result.response.text();
-
-        console.log(
-          `[AI Estimation - Attempt ${attempt + 1}] Raw Response Length: ${responseText.length}`,
-        );
-
-        const parsedJSON = extractJSON(responseText);
-
-        if (parsedJSON) {
-          return parsedJSON;
-        }
-
-        // If we have retries left, try again
-        if (attempt < MAX_RETRIES) {
-          console.warn(
-            `[AI Estimation] Invalid JSON on attempt ${attempt + 1}. Retrying...`,
-          );
-          console.warn(`[AI Estimation] Raw response: ${responseText.substring(0, 500)}`);
-          return generateEstimate(attempt + 1);
-        }
-
-        // All retries exhausted
-        console.error(
-          `[AI Estimation] Failed to extract valid JSON after ${MAX_RETRIES + 1} attempts`,
-        );
-        console.error(`[AI Estimation] Last response: ${responseText}`);
-        throw new Error(
-          "AI returned invalid JSON format even after retry. Unable to parse estimate.",
-        );
-      } catch (error) {
-        if (attempt < MAX_RETRIES) {
-          console.warn(
-            `[AI Estimation] Error on attempt ${attempt + 1}: ${error.message}. Retrying...`,
-          );
-          return generateEstimate(attempt + 1);
-        }
-        throw error;
-      }
-    };
-
-    // ===== EXECUTE ESTIMATION =====
-    const aiEstimation = await generateEstimate();
-
-    // Validate response structure
-    if (
-      !aiEstimation.analysis ||
-      !aiEstimation.estimatedCost ||
-      !aiEstimation.estimatedDays ||
-      !aiEstimation.materials ||
-      !aiEstimation.costBreakdown
-    ) {
-      console.error("[AI Estimation] Invalid response structure:", aiEstimation);
-      return res.status(500).json({
-        success: false,
-        message: "AI returned incomplete estimate data",
-      });
+    // Find JSON in the response
+    const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error("No JSON found in response");
     }
 
-    // ===== RETURN SUCCESS =====
+    const aiEstimation = JSON.parse(jsonMatch[0]);
+
     res.json({
       success: true,
       analysis: aiEstimation.analysis,
@@ -317,18 +188,10 @@ START WITH { AND END WITH }. NO OTHER TEXT.`;
       },
     });
   } catch (error) {
-    console.error("[AI Estimation] Fatal Error:", {
-      message: error.message,
-      stack: error.stack,
-      query,
-    });
-
-    // Return safe error response - never crash
+    console.error("AI Estimation Error:", error);
     res.status(500).json({
-      success: false,
-      message:
-        "Failed to generate construction estimate. Please try a more specific query or contact support.",
-      debug: process.env.NODE_ENV === "development" ? error.message : undefined,
+      message: "Failed to generate estimate. Please try a more specific query.",
+      error: error.message,
     });
   }
 };
