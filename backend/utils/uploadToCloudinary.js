@@ -12,12 +12,15 @@ cloudinary.config({
  * @param {Buffer} fileBuffer - The file buffer
  * @param {string} folder - Cloudinary folder path
  * @param {string} fileName - File name for the upload
- * @returns {Promise<string>} - Cloudinary URL of the uploaded file
+ * @param {{ returnMetadata?: boolean }} [options] - Return URL + public_id
+ * @returns {Promise<string|{url: string, public_id: string}>}
  */
-const uploadToCloudinary = async (fileBuffer, folder, fileName) => {
+const uploadToCloudinary = async (fileBuffer, folder, fileName, options = {}) => {
   if (!fileBuffer) {
     throw new Error("File buffer is required");
   }
+
+  const { returnMetadata = false } = options;
 
   try {
     return new Promise((resolve, reject) => {
@@ -32,6 +35,13 @@ const uploadToCloudinary = async (fileBuffer, folder, fileName) => {
           if (error) {
             reject(new Error(`Cloudinary upload failed: ${error.message}`));
           } else {
+            if (returnMetadata) {
+              resolve({
+                url: result.secure_url,
+                public_id: result.public_id,
+              });
+              return;
+            }
             resolve(result.secure_url);
           }
         },

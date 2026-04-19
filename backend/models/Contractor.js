@@ -53,6 +53,14 @@ const contractorSchema = new mongoose.Schema(
     // ✅ NEW: Profile Picture (automatically set from selfie, can be changed)
     profilePicture: { type: String }, // Contractor's profile picture URL (defaults to selfie)
 
+    // Contractor portfolio images stored from Cloudinary uploads
+    portfolio: [
+      {
+        url: { type: String, required: true },
+        public_id: { type: String, required: true },
+      },
+    ],
+
     // Reviews
     rating: { type: Number, default: 0 },
     totalReviews: { type: Number, default: 0 },

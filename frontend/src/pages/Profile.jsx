@@ -96,15 +96,36 @@ const Profile = () => {
         address: user.address || "",
         location: user.location || "",
         skill: pickedSkill,
-        teamType: user.contractorDetails?.teamType || "Individual",
+        teamType: user.contractorDetails?.teamType || user.teamType || "Individual",
         paymentMethod: pickedPaymentMethod,
         paymentAccount: pickedPaymentAccount,
         phoneForMobileWallet: pickedPhoneForWallet,
         ibanNumber: pickedIban,
-        availability: user.contractorDetails?.availability || "Green",
+        availability: user.contractorDetails?.availability || user.availability || "Green",
       });
-      if (user.contractorDetails?.teamMembers) {
-        setTeamMembers(user.contractorDetails.teamMembers);
+      const memberList = Array.isArray(user.contractorDetails?.teamMembers)
+        ? user.contractorDetails.teamMembers
+        : Array.isArray(user.teamMembers)
+          ? user.teamMembers
+          : [];
+      setTeamMembers(memberList);
+
+      if (user.role === "contractor") {
+        const storedPortfolio = Array.isArray(user.contractorDetails?.portfolio)
+          ? user.contractorDetails.portfolio
+          : Array.isArray(user.portfolio)
+            ? user.portfolio
+            : [];
+
+        setPortfolioImages(
+          storedPortfolio.map((img, index) => ({
+            id: img.public_id || `portfolio_${index}`,
+            preview: img.url,
+            url: img.url,
+            public_id: img.public_id,
+            persisted: true,
+          })),
+        );
       }
     }
   }, [user, contractorId]);
@@ -140,16 +161,20 @@ const Profile = () => {
 
   const handlePortfolioFileChange = (e) => {
     const files = Array.from(e.target.files);
-    const newImages = files.map((file) => ({
+    const newImages = files.map((file, index) => ({
+      id: `${file.name}_${Date.now()}_${index}`,
       file,
       preview: URL.createObjectURL(file),
+      persisted: false,
     }));
-    setPortfolioImages([...portfolioImages, ...newImages]);
+    setPortfolioImages((prev) => [...prev, ...newImages]);
   };
 
   const removePortfolioImage = (index) => {
     const newImages = [...portfolioImages];
-    URL.revokeObjectURL(newImages[index].preview);
+    if (newImages[index]?.file) {
+      URL.revokeObjectURL(newImages[index].preview);
+    }
     newImages.splice(index, 1);
     setPortfolioImages(newImages);
   };
@@ -217,9 +242,58 @@ const Profile = () => {
           teamMembers: formData.teamType === "Team" ? teamMembers : [],
         };
       }
-      const { data } = await api.put("/users/profile", payload);
+      let data;
+
+      if (user.role === "contractor") {
+        const multipartData = new FormData();
+        multipartData.append("fullName", payload.fullName || "");
+        multipartData.append("phone", payload.phone || "");
+        multipartData.append("address", payload.address || "");
+        multipartData.append("location", payload.location || "");
+        multipartData.append(
+          "contractorDetails",
+          JSON.stringify(payload.contractorDetails || {}),
+        );
+
+        portfolioImages
+          .filter((img) => Boolean(img.file))
+          .forEach((img) => {
+            multipartData.append("portfolioImages", img.file);
+          });
+
+        await api.put("/users/profile", multipartData, {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        });
+
+        const { data: refreshedContractor } = await api.get(
+          "/contractors/profile",
+        );
+        data = refreshedContractor;
+      } else {
+        const response = await api.put("/users/profile", payload);
+        data = response.data;
+      }
+
       toast.success("Profile & Settings Saved!");
       setUser(data);
+
+      if (user.role === "contractor") {
+        const latestPortfolio = Array.isArray(data?.portfolio)
+          ? data.portfolio
+          : [];
+
+        setPortfolioImages(
+          latestPortfolio.map((img, index) => ({
+            id: img.public_id || `portfolio_${index}`,
+            preview: img.url,
+            url: img.url,
+            public_id: img.public_id,
+            persisted: true,
+          })),
+        );
+      }
     } catch (error) {
       console.error(error);
       toast.error(error.response?.data?.message || "Failed to update profile.");
@@ -378,6 +452,30 @@ const Profile = () => {
                                 {member.skill}
                               </p>
                             </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              {Array.isArray(viewingContractor?.portfolio) &&
+                viewingContractor.portfolio.length > 0 && (
+                  <div className="card bg-base-100 shadow-xl border border-base-300">
+                    <div className="card-body">
+                      <h3 className="text-xl font-bold mb-6 flex items-center gap-2 border-b pb-4">
+                        <ImageIcon className="text-warning" /> Portfolio
+                      </h3>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {viewingContractor.portfolio.map((image, idx) => (
+                          <div
+                            key={image.public_id || idx}
+                            className="aspect-square rounded-xl overflow-hidden border border-base-300"
+                          >
+                            <img
+                              src={image.url}
+                              alt={`${viewingContractor.fullName} portfolio ${idx + 1}`}
+                              className="w-full h-full object-cover"
+                            />
                           </div>
                         ))}
                       </div>
@@ -792,22 +890,28 @@ const Profile = () => {
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       {portfolioImages.map((img, idx) => (
                         <div
-                          key={idx}
+                          key={img.id || idx}
                           className="relative group aspect-square rounded-xl overflow-hidden shadow-sm border"
                         >
                           <img
                             src={img.preview}
                             className="w-full h-full object-cover"
                           />
-                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center">
-                            <button
-                              type="button"
-                              onClick={() => removePortfolioImage(idx)}
-                              className="btn btn-circle btn-sm btn-error text-white"
-                            >
-                              <X size={16} />
-                            </button>
-                          </div>
+                          {img.file ? (
+                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center">
+                              <button
+                                type="button"
+                                onClick={() => removePortfolioImage(idx)}
+                                className="btn btn-circle btn-sm btn-error text-white"
+                              >
+                                <X size={16} />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="absolute top-2 right-2 badge badge-success badge-sm text-white">
+                              Saved
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>

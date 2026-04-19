@@ -300,7 +300,11 @@ const getContractorProfile = async (req, res) => {
       return res.status(404).json({ message: "Contractor not found" });
 
     const rating = await calculateContractorRating(contractorId);
-    res.json({ ...contractor.toObject(), ...rating });
+    const contractorObject = contractor.toObject();
+    contractorObject.portfolio = Array.isArray(contractorObject.portfolio)
+      ? contractorObject.portfolio
+      : [];
+    res.json({ ...contractorObject, ...rating });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -317,7 +321,11 @@ const getCurrentContractorProfile = async (req, res) => {
       return res.status(404).json({ message: "Contractor not found" });
 
     const rating = await calculateContractorRating(req.user._id);
-    res.json({ ...contractor.toObject(), ...rating });
+    const contractorObject = contractor.toObject();
+    contractorObject.portfolio = Array.isArray(contractorObject.portfolio)
+      ? contractorObject.portfolio
+      : [];
+    res.json({ ...contractorObject, ...rating });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

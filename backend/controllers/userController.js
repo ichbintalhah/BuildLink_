@@ -140,7 +140,11 @@ const getContractorProfile = async (req, res) => {
       return res.status(404).json({ message: "Contractor not found" });
 
     const rating = await calculateContractorRating(contractorId);
-    res.json({ ...contractor.toObject(), ...rating });
+    const contractorObject = contractor.toObject();
+    contractorObject.portfolio = Array.isArray(contractorObject.portfolio)
+      ? contractorObject.portfolio
+      : [];
+    res.json({ ...contractorObject, ...rating });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -161,38 +165,81 @@ const updateUserProfile = async (req, res) => {
     const userId = req.user._id;
     const body = req.body;
 
+    let contractorDetails = body.contractorDetails;
+    if (typeof contractorDetails === "string") {
+      try {
+        contractorDetails = JSON.parse(contractorDetails);
+      } catch (error) {
+        return res.status(400).json({ message: "Invalid contractorDetails JSON" });
+      }
+    }
+
+    let replacePortfolio = body.replacePortfolio;
+    if (typeof replacePortfolio === "string") {
+      replacePortfolio = replacePortfolio.toLowerCase() === "true";
+    }
+    replacePortfolio = Boolean(replacePortfolio);
+
     // If contractor, update Contractor collection and map fields to contractorDetails shape
     if (req.user.role === "contractor") {
-      const updates = {};
-      if (body.fullName !== undefined) updates.fullName = body.fullName;
-      if (body.phone !== undefined) updates.phone = body.phone;
-      if (body.address !== undefined) updates.address = body.address;
-      if (body.location !== undefined) updates.location = body.location;
-
-      if (body.contractorDetails) {
-        const cd = body.contractorDetails;
-        if (cd.skill) {
-          updates.skill = formatSkillValue(cd.skill);
-          updates.skillNormalized = normalizeSkillValue(cd.skill);
-        }
-        if (cd.teamType) updates.teamType = cd.teamType;
-        if (cd.paymentMethod) updates.paymentMethod = cd.paymentMethod;
-        if (cd.paymentAccount) updates.paymentAccount = cd.paymentAccount;
-        if (cd.phoneForMobileWallet)
-          updates.phoneForMobileWallet = cd.phoneForMobileWallet;
-        if (cd.ibanNumber) updates.ibanNumber = cd.ibanNumber;
-        if (cd.teamMembers) updates.teamMembers = cd.teamMembers;
-        if (cd.availability) updates.availability = cd.availability;
+      const contractor = await Contractor.findById(userId);
+      if (!contractor) {
+        return res.status(404).json({ message: "Contractor not found" });
       }
 
-      const updatedContractor = await Contractor.findByIdAndUpdate(
-        userId,
-        { $set: updates },
-        { new: true, runValidators: false },
-      ).select("-password");
+      if (body.fullName !== undefined) contractor.fullName = body.fullName;
+      if (body.phone !== undefined) contractor.phone = body.phone;
+      if (body.address !== undefined) contractor.address = body.address;
+      if (body.location !== undefined) contractor.location = body.location;
+
+      if (contractorDetails) {
+        const cd = contractorDetails;
+        if (cd.skill) {
+          contractor.skill = formatSkillValue(cd.skill);
+          contractor.skillNormalized = normalizeSkillValue(cd.skill);
+        }
+        if (cd.teamType) contractor.teamType = cd.teamType;
+        if (cd.paymentMethod) contractor.paymentMethod = cd.paymentMethod;
+        if (cd.paymentAccount) contractor.paymentAccount = cd.paymentAccount;
+        if (cd.phoneForMobileWallet)
+          contractor.phoneForMobileWallet = cd.phoneForMobileWallet;
+        if (cd.ibanNumber) contractor.ibanNumber = cd.ibanNumber;
+        if (Array.isArray(cd.teamMembers)) contractor.teamMembers = cd.teamMembers;
+        if (cd.availability) contractor.availability = cd.availability;
+      }
+
+      const files = req.files?.portfolioImages || [];
+      if (files.length > 0) {
+        const uploadedPortfolio = await Promise.all(
+          files.map((file, index) => {
+            const fileName = `portfolio_${userId}_${Date.now()}_${index}`;
+            return uploadToCloudinary(
+              file.buffer,
+              "contractors/portfolio",
+              fileName,
+              { returnMetadata: true },
+            );
+          }),
+        );
+
+        const existingPortfolio = Array.isArray(contractor.portfolio)
+          ? contractor.portfolio
+          : [];
+        contractor.portfolio = replacePortfolio
+          ? uploadedPortfolio
+          : [...existingPortfolio, ...uploadedPortfolio];
+      } else if (!Array.isArray(contractor.portfolio)) {
+        contractor.portfolio = [];
+      }
+
+      await contractor.save();
+      const updatedContractor = contractor.toObject();
 
       return res.json({
-        ...updatedContractor.toObject(),
+        ...updatedContractor,
+        portfolio: Array.isArray(updatedContractor.portfolio)
+          ? updatedContractor.portfolio
+          : [],
         contractorDetails: {
           paymentMethod: updatedContractor.paymentMethod,
           paymentAccount: updatedContractor.paymentAccount,
@@ -202,6 +249,9 @@ const updateUserProfile = async (req, res) => {
           teamType: updatedContractor.teamType,
           availability: updatedContractor.availability,
           teamMembers: updatedContractor.teamMembers,
+          portfolio: Array.isArray(updatedContractor.portfolio)
+            ? updatedContractor.portfolio
+            : [],
         },
       });
     }
@@ -218,8 +268,8 @@ const updateUserProfile = async (req, res) => {
     if (body.paymentAccountValue)
       updates.paymentAccountValue = body.paymentAccountValue;
 
-    if (body.contractorDetails) {
-      const cd = body.contractorDetails;
+    if (contractorDetails) {
+      const cd = contractorDetails;
       if (cd.skill)
         updates["contractorDetails.skill"] = formatSkillValue(cd.skill);
       if (cd.availability)

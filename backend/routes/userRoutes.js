@@ -36,7 +36,12 @@ router.get("/contractor/:contractorId", getContractorProfile); // FIX BUG 2: GET
 router.get("/admin/users", protect, adminOnly, getAllUsers); // All users
 router.get("/admin/contractors", protect, adminOnly, getAllContractors); // All contractors
 
-router.put("/profile", protect, updateUserProfile); // <--- New Profile Update Route
+router.put(
+  "/profile",
+  protect,
+  upload.fields([{ name: "portfolioImages", maxCount: 20 }]),
+  updateUserProfile,
+); // Supports contractor portfolio uploads + profile updates
 router.put("/profile-picture", protect, upload.single("profilePicture"), updateProfilePicture); // <--- Update Profile Picture Route
 
 module.exports = router;
